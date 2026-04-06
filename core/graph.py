@@ -47,10 +47,10 @@ def critic_routing(state: ADKState) -> str:
         return "optimizer"
 
 def coder_routing(state: ADKState) -> str:
-    """Self-Correction Routing: Retries if backtest failed."""
+    """Self-Correction Routing: Retries if backtest failed. On success, goes to Critic."""
     results = state.backtest_results or {}
     if results.get("status") == "success":
-        return "execution"
+        return "critic"
     
     if state.backtest_attempts < state.max_backtest_retries:
         print(f"   [Routing] Backtest failed. Retrying (Attempt {state.backtest_attempts}/{state.max_backtest_retries}).")
@@ -94,10 +94,22 @@ def build_graph() -> StateGraph:
     for node in parallel_nodes:
         workflow.add_edge(node, "aggregator")
 
-    # Generator to Critic Loop
-    workflow.add_edge("aggregator", "critic")
+    # Generator to Backtest (Coder) Loop
+    workflow.add_edge("aggregator", "coder")
+
+    # Post-Coder Routing (Self-Correction or Proceed to Critic)
+    workflow.add_conditional_edges(
+        "coder",
+        coder_routing,
+        {
+            "critic": "critic", # If code executed successfully
+            "coder": "coder",   # If code failed and retrying
+            "reporting": "reporting" # If code failed max retries
+        }
+    )
 
     # Critic Routing (The Core Loop)
+    # The Critic now evaluates the Strategy AND the Backtest Results
     workflow.add_conditional_edges(
         "critic",
         critic_routing,
@@ -108,25 +120,14 @@ def build_graph() -> StateGraph:
         }
     )
 
-    # Stress Tester goes to Coder
-    workflow.add_edge("stress_tester", "coder")
-
     # Optimizer goes to Meta-Reflective for prompt tuning
     workflow.add_edge("optimizer", "meta_reflective")
 
     # Meta-Reflective returns to Aggregator
     workflow.add_edge("meta_reflective", "aggregator")
 
-    # Post-Approval Execution Flow with Self-Correction Loop
-    workflow.add_conditional_edges(
-        "coder",
-        coder_routing,
-        {
-            "execution": "execution",
-            "coder": "coder",
-            "reporting": "reporting"
-        }
-    )
+    # Stress Tester goes to Execution
+    workflow.add_edge("stress_tester", "execution")
     workflow.add_edge("execution", "reporting")
     workflow.add_edge("reporting", END)
 

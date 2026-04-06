@@ -91,11 +91,13 @@ def coder_agent(state: ADKState) -> Dict[str, Any]:
         results = code_executor.execute_python_code(code)
         return {"backtest_results": results, "backtest_attempts": state.backtest_attempts + 1}
 
-    # 2. Real Gemini Code Generation with Self-Correction context
+    # 2. Real Gemini Code Generation with Deep Learning focus
     prompt = (
-        "Generate a professional Python backtest script. Use yfinance/pandas. "
+        "Generate a professional Python backtest script using Deep Learning. "
+        "Use yfinance for data. Implement a simple LSTM or Transformer-based feature "
+        "to predict returns. Use PyTorch or Scikit-Learn. "
         "Calculate Sharpe Ratio and Max Drawdown. Output JSON with 'BACKTEST_RESULTS:' prefix. "
-        "IMPORTANT: Use modern pandas offsets (e.g., use 'BQE' or 'ME' instead of deprecated 'BQ' or 'M')."
+        "IMPORTANT: Use modern pandas offsets (e.g., use 'BQE' or 'ME')."
     )
     
     if state.execution_logs:
