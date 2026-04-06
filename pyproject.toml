@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "adk-framework-v3"
+version = "0.1.0"
+description = "Advanced Agentic 'Brain' for automated financial analysis, strategy generation, backtesting, and algorithmic trading"
+authors = ["Staff AI Systems Architect <architect@adk.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langgraph = "^0.0.26"
+pydantic = "^2.6.0"
+langchain = "^0.1.0"
+pytest = "^8.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
