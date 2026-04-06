@@ -13,17 +13,37 @@ class CriticOutput(BaseModel):
     critiques: List[str] = Field(description="List of specific reasons for rejection or comments on approval.")
     risk_score: float = Field(description="Assessed risk level from 0.0 to 1.0.")
 
+from adk_framework_v3.tools.risk_engine import risk_engine
+
 def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
     """
-    LLM-powered Multi-Factor Critic Node using Gemini.
-    Evaluates Strategy AND Empirical Backtest Results.
+    LLM-powered Multi-Factor Critic Node using Gemini and RiskEngine.
+    Evaluates Strategy, Backtest, and Mathematical Risk (Correlation/VaR).
     """
-    print("-> Critic: Performing empirical & multi-factor risk assessment.")
+    print("-> Critic: Performing empirical & mathematical risk assessment.")
     
     if not state.draft_strategy:
         return {"approval_status": ApprovalStatus.REJECTED, "feedback_loop": ["No strategy to evaluate."]}
 
-    # 1. Empirical Backtest Validation (From rewired flow)
+    # 1. Mathematical Risk Engine (Correlation & VaR)
+    strategy = state.draft_strategy
+    tickers = [t for t in strategy.target_allocations.keys() if t != "CASH"]
+    weights = strategy.target_allocations
+    
+    risk_stats = risk_engine.calculate_portfolio_risk(tickers, weights)
+    
+    if risk_stats.get("status") == "success":
+        avg_corr = risk_stats.get("avg_correlation", 0)
+        if avg_corr > 0.8:
+            feedback = f"Mathematical Rejection: Portfolio correlation ({avg_corr:.2f}) is too high. Tickers are moving in lockstep, increasing idiosyncratic risk."
+            print(f"   [Critic] {feedback}")
+            return {
+                "approval_status": ApprovalStatus.REJECTED,
+                "feedback_loop": [feedback],
+                "current_retry": state.current_retry + 1
+            }
+
+    # 2. Empirical Backtest Validation
     bt = state.backtest_results or {}
     sharpe = bt.get("sharpe_ratio", 0.0)
     drawdown = abs(bt.get("max_drawdown", 0.0))

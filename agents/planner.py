@@ -14,24 +14,41 @@ class PlannerOutput(BaseModel):
 from adk_framework_v3.core.llm_provider import llm_provider
 import os
 
+from adk_framework_v3.tools.compliance_engine import compliance_engine
+
 def planner_agent(state: ADKState) -> Dict[str, Any]:
     """
-    LLM-powered Planner Node using Gemini.
-    Decomposes the natural language UserRequest into actionable H-SSS updates.
+    LLM-powered Planner Node with Institutional Compliance Pre-Check.
     """
     print(f"-> Planner: Orchestrating strategy for {state.request.asset_class}.")
     
-    # 1. Check for API Key to determine if we use real Gemini or Mock
+    # 1. Institutional Compliance Pre-Check
+    initial_tickers = state.request.tickers or ["AAPL"]
+    compliance_results = compliance_engine.check_ticker_compliance(initial_tickers)
+    
+    safe_tickers = compliance_results["approved_tickers"]
+    rejected_tickers = compliance_results["rejected_tickers"]
+
+    if rejected_tickers:
+        print(f"   [Compliance] BLOCKED restricted assets: {rejected_tickers}")
+
+    # 2. Check for API Key for Gemini Planning
     if not os.environ.get("GOOGLE_API_KEY"):
         logger.warning("Planner: No API Key found. Falling back to mock planner logic.")
         req = state.request
         tasks = [
-            f"Analyze fundamental health for {', '.join(req.tickers)}.",
+            f"Analyze fundamental health for {', '.join(safe_tickers)}.",
             f"Generate {req.risk_tolerance}-aware quantitative alpha signals.",
             "Synthesize results into a cohesive strategy draft."
         ]
         return {
-            "request": req.model_dump(),
+            "request": {
+                "asset_class": req.asset_class,
+                "risk_tolerance": req.risk_tolerance,
+                "time_horizon": req.time_horizon,
+                "tickers": safe_tickers,
+                "additional_constraints": req.additional_constraints
+            },
             "plan": tasks
         }
 

@@ -1,0 +1,26 @@
+services:
+  adk-brain:
+    build: .
+    container_name: adk_brain_v4
+    ports:
+      - "8501:8501"
+    env_file:
+      - ../.env
+    volumes:
+      # Persist the Alpha Memory (Vector DB)
+      - adk_alpha_memory:/app/alpha_memory
+      # Persist the Trade Ledger (SQL DB)
+      - ./trade_ledger.db:/app/trade_ledger.db
+      # Persist Logs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - adk-network
+
+networks:
+  adk-network:
+    driver: bridge
+
+volumes:
+  adk_alpha_memory:
+    driver: local

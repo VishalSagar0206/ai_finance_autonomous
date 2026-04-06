@@ -6,28 +6,36 @@ logger = logging.getLogger(__name__)
 
 from adk_framework_v3.tools.alpha_memory import alpha_memory
 
+from adk_framework_v3.tools.ledger import trade_ledger
+
 class ExecutionAgent:
     """
-    Connects to live/paper brokers and persists success to Alpha Memory.
+    Connects to multi-broker venues and persists results to SQL Ledger.
     """
 
     @staticmethod
     def execute_strategy(state: ADKState) -> Dict[str, Any]:
         """
-        Sends the approved strategy to the brokerage. 
+        Sends the approved strategy to the SOR and logs to Ledger.
         """
         strategy = state.draft_strategy
         allocations = strategy.target_allocations
         
-        print(f"-> Execution: Routing orders for {len(allocations)} tickers to Alpaca Sandbox.")
+        print(f"-> Execution: Initiating Smart Order Routing for {len(allocations)} tickers.")
         
-        # Simulated Order Routing Logic
         filled_holdings = {}
+        execution_records = []
         for ticker, weight in allocations.items():
             if ticker == "CASH": continue
             shares = int((100000 * weight) / 150) 
+            
+            routing_result = sor_router.route_order(ticker, shares)
+            
             filled_holdings[ticker] = shares
-            print(f"   [Execution] Executed BUY: {shares} shares of {ticker}.")
+            execution_records.append(routing_result)
+
+        # PERSIST TO SQL LEDGER
+        trade_ledger.log_execution(strategy.strategy_id, execution_records)
 
         # PERSIST TO ALPHA MEMORY
         if state.backtest_results and state.backtest_results.get("status") == "success":
