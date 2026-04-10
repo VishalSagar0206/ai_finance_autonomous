@@ -1,19 +1,25 @@
 from typing import Dict, Any, List
-from adk_framework_v3.core.state import ADKState, ApprovalStatus
-from adk_framework_v3.core.llm_provider import llm_provider
+from core.state import ADKState, ApprovalStatus
+from core.llm_provider import llm_provider
 from pydantic import BaseModel, Field
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CriticOutput(BaseModel):
     """Schema for the Critic's structured evaluation."""
+
     status: ApprovalStatus
-    critiques: List[str] = Field(description="List of specific reasons for rejection or comments on approval.")
+    critiques: List[str] = Field(
+        description="List of specific reasons for rejection or comments on approval."
+    )
     risk_score: float = Field(description="Assessed risk level from 0.0 to 1.0.")
 
-from adk_framework_v3.tools.risk_engine import risk_engine
+
+from tools.risk_engine import risk_engine
+
 
 def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
     """
@@ -21,17 +27,20 @@ def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
     Evaluates Strategy, Backtest, and Mathematical Risk (Correlation/VaR).
     """
     print("-> Critic: Performing empirical & mathematical risk assessment.")
-    
+
     if not state.draft_strategy:
-        return {"approval_status": ApprovalStatus.REJECTED, "feedback_loop": ["No strategy to evaluate."]}
+        return {
+            "approval_status": ApprovalStatus.REJECTED,
+            "feedback_loop": ["No strategy to evaluate."],
+        }
 
     # 1. Mathematical Risk Engine (Correlation & VaR)
     strategy = state.draft_strategy
     tickers = [t for t in strategy.target_allocations.keys() if t != "CASH"]
     weights = strategy.target_allocations
-    
+
     risk_stats = risk_engine.calculate_portfolio_risk(tickers, weights)
-    
+
     if risk_stats.get("status") == "success":
         avg_corr = risk_stats.get("avg_correlation", 0)
         if avg_corr > 0.8:
@@ -40,7 +49,7 @@ def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
             return {
                 "approval_status": ApprovalStatus.REJECTED,
                 "feedback_loop": [feedback],
-                "current_retry": state.current_retry + 1
+                "current_retry": state.current_retry + 1,
             }
 
     # 2. Empirical Backtest Validation
@@ -49,21 +58,21 @@ def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
     drawdown = abs(bt.get("max_drawdown", 0.0))
 
     if bt.get("status") == "success":
-        if sharpe < 0.8: # Threshold for institutional grade
+        if sharpe < 0.8:  # Threshold for institutional grade
             feedback = f"Empirical Rejection: Sharpe Ratio ({sharpe:.2f}) is below the institutional threshold of 0.8. The model lacks sufficient risk-adjusted return."
             print(f"   [Critic] {feedback}")
             return {
                 "approval_status": ApprovalStatus.REJECTED,
                 "feedback_loop": [feedback],
-                "current_retry": state.current_retry + 1
+                "current_retry": state.current_retry + 1,
             }
-        if drawdown > 0.15: # 15% drawdown limit
+        if drawdown > 0.15:  # 15% drawdown limit
             feedback = f"Empirical Rejection: Max Drawdown ({drawdown*100:.1f}%) exceeds the 15% safety limit. Portfolio volatility is too high."
             print(f"   [Critic] {feedback}")
             return {
                 "approval_status": ApprovalStatus.REJECTED,
                 "feedback_loop": [feedback],
-                "current_retry": state.current_retry + 1
+                "current_retry": state.current_retry + 1,
             }
 
     # 2. Fallback Logic for Mock Simulation (No API Key)
@@ -81,18 +90,26 @@ def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
     try:
         llm_out = llm_provider.run_structured_chain(
             prompt_text=prompt,
-            input_data=state.model_dump(include={"request", "observations", "draft_strategy", "backtest_results", "current_retry"}),
-            output_schema=CriticOutput
+            input_data=state.model_dump(
+                include={
+                    "request",
+                    "observations",
+                    "draft_strategy",
+                    "backtest_results",
+                    "current_retry",
+                }
+            ),
+            output_schema=CriticOutput,
         )
-        
+
         if llm_out.status == ApprovalStatus.REJECTED:
             print(f"   [Critic] Rejected by AI: {llm_out.critiques}")
             return {
                 "approval_status": ApprovalStatus.REJECTED,
                 "feedback_loop": llm_out.critiques,
-                "current_retry": state.current_retry + 1
+                "current_retry": state.current_retry + 1,
             }
-        
+
         print("   [Critic] Approved by AI.")
         return {"approval_status": ApprovalStatus.APPROVED}
     except Exception as e:

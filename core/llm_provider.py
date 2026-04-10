@@ -9,7 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
-from adk_framework_v3.core.config import config
+from core.config import config
+
 
 class LLMProvider:
     """
@@ -24,7 +25,7 @@ class LLMProvider:
         if not api_key:
             logger.warning("GOOGLE_API_KEY not found in environment. Using mock logic.")
             return None
-        
+
         # Best Practice: Use specific version and explicit safety settings
         return ChatGoogleGenerativeAI(
             model="gemini-3.1-pro-preview",
@@ -35,22 +36,20 @@ class LLMProvider:
 
     @staticmethod
     def run_structured_chain(
-        prompt_text: str, 
-        input_data: Dict[str, Any], 
-        output_schema: Type[T]
+        prompt_text: str, input_data: Dict[str, Any], output_schema: Type[T]
     ) -> T:
         """
         Executes a prompt through Gemini and parses the response into the requested Pydantic model.
         """
         model = LLMProvider.get_model()
-        
+
         # Fallback to a basic 'mock' or error if no model is available
         if not model:
             logger.error("LLM model is unavailable. Ensure GOOGLE_API_KEY is set.")
             raise RuntimeError("Gemini model is unavailable.")
 
         parser = PydanticOutputParser(pydantic_object=output_schema)
-        
+
         # Best Practice: System prompt and formatting instructions
         prompt = ChatPromptTemplate.from_template(
             "System: You are an expert AI Systems Architect and Financial Quantitative Analyst.\n"
@@ -58,19 +57,22 @@ class LLMProvider:
             "Context: {prompt_text}\n"
             "Input Data: {input_data}"
         )
-        
+
         # Create a Chain: Prompt -> Model -> Parser
         chain = prompt | model | parser
-        
+
         try:
-            return chain.invoke({
-                "prompt_text": prompt_text,
-                "input_data": input_data,
-                "format_instructions": parser.get_format_instructions()
-            })
+            return chain.invoke(
+                {
+                    "prompt_text": prompt_text,
+                    "input_data": input_data,
+                    "format_instructions": parser.get_format_instructions(),
+                }
+            )
         except Exception as e:
             logger.error(f"Error in Gemini Chain execution: {str(e)}")
             # In production, we'd add retry logic here
             raise
+
 
 llm_provider = LLMProvider()

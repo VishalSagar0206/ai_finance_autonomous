@@ -1,16 +1,28 @@
-[tool.poetry]
-name = "adk-framework-v3"
+[project]
+name = "ai_finance_autonomous"
 version = "0.1.0"
-description = "Advanced Agentic 'Brain' for automated financial analysis, strategy generation, backtesting, and algorithmic trading"
-authors = ["Staff AI Systems Architect <architect@adk.com>"]
+requires-python = ">=3.12.12"
 
-[tool.poetry.dependencies]
-python = "^3.11"
-langgraph = "^0.0.26"
-pydantic = "^2.6.0"
-langchain = "^0.1.0"
-pytest = "^8.0.0"
+dependencies = [
+    "streamlit==1.56.0",
+    "langchain==0.1.20",
+    "langchain-community==0.0.38",
+    "langchain-core==0.1.52",
+    "langgraph==0.0.40",
+    "langchain-google-genai==1.0.4",
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+    "pydantic==2.12.5",
+    "pydantic-settings==2.13.1",
+
+    "yfinance==1.2.1",
+    "pandas==2.2.2",
+    "numpy==1.26.4",
+
+    "python-dotenv==1.2.2",
+    "requests==2.33.1",
+    "httpx==0.28.1",
+
+    "chromadb==1.5.7",
+
+    "uvicorn==0.44.0"
+]

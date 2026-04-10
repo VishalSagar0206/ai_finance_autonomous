@@ -1,6 +1,7 @@
 import pytest
-from adk_framework_v3.core.graph import adk_app
-from adk_framework_v3.core.state import ADKState, UserRequest, ApprovalStatus
+from core.graph import adk_app
+from core.state import ADKState, UserRequest, ApprovalStatus
+
 
 def test_graph_execution_end_to_end():
     """Verify the entire graph compiles and executes to the reporting node."""
@@ -9,13 +10,13 @@ def test_graph_execution_end_to_end():
             asset_class="Equities",
             risk_tolerance="Moderate",
             time_horizon="1y",
-            tickers=["AAPL"]
+            tickers=["AAPL"],
         )
-    )
+    ).model_dump()
 
     # config is required by LangGraph but optional for this mock run
     config = {"configurable": {"thread_id": "test_thread_1"}}
-    
+
     # Execute the graph
     # We'll just invoke it to get the final state update
     # Note: invoke returns a dict of the final state (the state after the last node)
@@ -27,4 +28,3 @@ def test_graph_execution_end_to_end():
     assert len(final_state_dict["feedback_loop"]) == 1
     assert "final_report" in final_state_dict
     assert "Success: Alpha strategy" in final_state_dict["final_report"]
-

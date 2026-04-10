@@ -1,11 +1,13 @@
 import pytest
 import uuid
-from adk_framework_v3.core.graph import adk_app
-from adk_framework_v3.core.state import ADKState, UserRequest, ApprovalStatus
+from core.graph import adk_app
+from core.state import ADKState, UserRequest, ApprovalStatus
+
 
 @pytest.fixture
 def thread_id():
     return str(uuid.uuid4())
+
 
 def test_institutional_stress_tester(thread_id):
     """Verifies that the stress tester node generates a valid report in the state."""
@@ -15,9 +17,9 @@ def test_institutional_stress_tester(thread_id):
             asset_class="Equities",
             risk_tolerance="Moderate",
             time_horizon="1y",
-            tickers=["AAPL"]
+            tickers=["AAPL"],
         )
-    )
+    ).model_dump()
 
     # We run until the 'coder' node to ensure it passed stress testing
     # Since we have an interrupt at 'execution', we can just run until it stops
@@ -31,12 +33,14 @@ def test_institutional_stress_tester(thread_id):
     # Inspect state after interrupt
     state_snapshot = adk_app.get_state(config)
     state = state_snapshot.values
-    
+
     assert state["stress_test_report"] is not None
     assert "scenario_name" in state["stress_test_report"]
     assert "is_resilient" in state["stress_test_report"]
 
+
 from unittest.mock import patch
+
 
 def test_institutional_hitl_interrupt(thread_id):
     """Verifies the graph correctly interrupts before execution."""
@@ -46,12 +50,12 @@ def test_institutional_hitl_interrupt(thread_id):
             asset_class="Equities",
             risk_tolerance="Conservative",
             time_horizon="1y",
-            tickers=["GOOG"]
+            tickers=["GOOG"],
         )
-    )
+    ).model_dump()
 
     # Force coder to succeed by mocking the underlying tool
-    with patch("adk_framework_v3.agents.coder.code_executor.execute_python_code") as mock_exec:
+    with patch("agents.coder.code_executor.execute_python_code") as mock_exec:
         mock_exec.return_value = {"status": "success", "sharpe_ratio": 2.0}
 
         # Run until interrupt
@@ -61,19 +65,24 @@ def test_institutional_hitl_interrupt(thread_id):
 
         # The state should be 'suspended' before the 'execution' node
         state_snapshot = adk_app.get_state(config)
-        
+
         # next is a tuple of node names that are ready to run
         print(f"DEBUG: state_snapshot.next={state_snapshot.next}")
         assert "execution" in state_snapshot.next
-        
+
         # To 'Approve' and continue
         adk_app.invoke(None, config=config)
-        
+
         # Verify it finished
         final_snapshot = adk_app.get_state(config)
         assert final_snapshot.next == ()
-        holdings = final_snapshot.values["portfolio"].holdings if hasattr(final_snapshot.values["portfolio"], "holdings") else final_snapshot.values["portfolio"].get("holdings")
+        holdings = (
+            final_snapshot.values["portfolio"].holdings
+            if hasattr(final_snapshot.values["portfolio"], "holdings")
+            else final_snapshot.values["portfolio"].get("holdings")
+        )
         assert holdings is not None
+
 
 def test_indian_market_support(thread_id):
     """Verifies that Indian tickers (RELIANCE) are correctly formatted and analyzed."""
@@ -84,25 +93,32 @@ def test_indian_market_support(thread_id):
             asset_class="Equities",
             risk_tolerance="Moderate",
             time_horizon="2y",
-            tickers=["RELIANCE"]
+            tickers=["RELIANCE"],
         )
-    )
+    ).model_dump()
 
     # Run until interrupt
     adk_app.invoke(initial_state, config=config)
-    
+
     state_snapshot = adk_app.get_state(config)
     state = state_snapshot.values
-    
+
     # Robust data access for check-pointed state
     def get_results(obj):
-        if hasattr(obj, "results"): return obj.results
+        if hasattr(obj, "results"):
+            return obj.results
         return obj.get("results") if isinstance(obj, dict) else {}
 
     obs = state.get("observations")
-    quant_obs = obs.quantitative if hasattr(obs, "quantitative") else obs.get("quantitative")
+    quant_obs = (
+        obs.quantitative if hasattr(obs, "quantitative") else obs.get("quantitative")
+    )
     quant_results = get_results(quant_obs)
 
     assert "RELIANCE.NS" in quant_results
-    status = quant_results["RELIANCE.NS"].get("status") if isinstance(quant_results["RELIANCE.NS"], dict) else quant_results["RELIANCE.NS"].status
+    status = (
+        quant_results["RELIANCE.NS"].get("status")
+        if isinstance(quant_results["RELIANCE.NS"], dict)
+        else quant_results["RELIANCE.NS"].status
+    )
     assert status == "completed"
