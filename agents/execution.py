@@ -1,12 +1,13 @@
 from typing import Dict, Any
-from adk_framework_v3.core.state import ADKState
+from core.state import ADKState
 import logging
 
 logger = logging.getLogger(__name__)
 
-from adk_framework_v3.tools.alpha_memory import alpha_memory
+from tools.alpha_memory import alpha_memory
 
-from adk_framework_v3.tools.ledger import trade_ledger
+from tools.ledger import trade_ledger
+
 
 class ExecutionAgent:
     """
@@ -20,17 +21,20 @@ class ExecutionAgent:
         """
         strategy = state.draft_strategy
         allocations = strategy.target_allocations
-        
-        print(f"-> Execution: Initiating Smart Order Routing for {len(allocations)} tickers.")
-        
+
+        print(
+            f"-> Execution: Initiating Smart Order Routing for {len(allocations)} tickers."
+        )
+
         filled_holdings = {}
         execution_records = []
         for ticker, weight in allocations.items():
-            if ticker == "CASH": continue
-            shares = int((100000 * weight) / 150) 
-            
+            if ticker == "CASH":
+                continue
+            shares = int((100000 * weight) / 150)
+
             routing_result = sor_router.route_order(ticker, shares)
-            
+
             filled_holdings[ticker] = shares
             execution_records.append(routing_result)
 
@@ -43,16 +47,17 @@ class ExecutionAgent:
                 strategy_id=strategy.strategy_id,
                 rationale=strategy.rationale,
                 parameters=strategy.parameters,
-                results=state.backtest_results
+                results=state.backtest_results,
             )
 
         return {
             "portfolio": {
                 "holdings": filled_holdings,
                 "buying_power": 12500.0,
-                "last_execution_id": "ORD_ALP_9912"
+                "last_execution_id": "ORD_ALP_9912",
             }
         }
+
 
 def execution_agent(state: ADKState) -> Dict[str, Any]:
     """Node implementation for final trade execution."""

@@ -1,12 +1,13 @@
 from typing import Dict, Any
-from adk_framework_v3.core.state import ADKState, DraftStrategy
-from adk_framework_v3.core.llm_provider import llm_provider
+from core.state import ADKState, DraftStrategy
+from core.llm_provider import llm_provider
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
-from adk_framework_v3.tools.alpha_memory import alpha_memory
+from tools.alpha_memory import alpha_memory
+
 
 def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
     """
@@ -14,69 +15,93 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
     Synthesizes AgentObservations and Historical Memory from H-SSS into a coherent DraftStrategy.
     """
     print(f"-> Aggregator [Retry {state.current_retry}]: Generating Strategy.")
-    
+
     # 1. Query Alpha Memory for long-term learning
     query_text = f"Asset Class: {state.request.asset_class}, Risk: {state.request.risk_tolerance}, Tickers: {state.request.tickers}"
     historical_memory = alpha_memory.retrieve_similar_strategies(query_text)
-    
+
     # ... (Fallback logic remains same)
     if not os.environ.get("GOOGLE_API_KEY"):
         # ...
         logger.warning("Aggregator: No API Key. Falling back to mock generator logic.")
         obs = state.observations
         tickers = state.request.tickers
-        
+
         def get_results(obj):
-            if not obj: return {}
-            if hasattr(obj, 'results'): return obj.results
-            if isinstance(obj, dict): return obj.get('results', {})
+            if not obj:
+                return {}
+            if hasattr(obj, "results"):
+                return obj.results
+            if isinstance(obj, dict):
+                return obj.get("results", {})
             return {}
-        
+
         fund_results = get_results(obs.fundamental)
         quant_results = get_results(obs.quantitative)
 
         def get_status(res):
-            if isinstance(res, dict): return res.get("status")
+            if isinstance(res, dict):
+                return res.get("status")
             return getattr(res, "status", None)
-        
-        successful_tickers = [t for t in tickers if get_status(fund_results.get(t)) == "completed"]
-        
+
+        successful_tickers = [
+            t for t in tickers if get_status(fund_results.get(t)) == "completed"
+        ]
+
         if not successful_tickers:
-            return {"draft_strategy": DraftStrategy(
-                strategy_id=f"DEFENSIVE_{state.current_retry}",
-                rationale="Insufficient agent data. Falling back to cash.",
-                parameters={"risk_mode": "extreme_defensive"},
-                target_allocations={"CASH": 1.0}
-            )}
+            return {
+                "draft_strategy": DraftStrategy(
+                    strategy_id=f"DEFENSIVE_{state.current_retry}",
+                    rationale="Insufficient agent data. Falling back to cash.",
+                    parameters={"risk_mode": "extreme_defensive"},
+                    target_allocations={"CASH": 1.0},
+                )
+            }
 
         # Conflict Resolution in Mock
         ticker_scores = {}
         total_score = 0
         for t in successful_tickers:
-            f_insight = fund_results.get(t, {}).get("insight", "").lower() if isinstance(fund_results.get(t), dict) else ""
-            q_insight = quant_results.get(t, {}).get("insight", "").lower() if isinstance(quant_results.get(t), dict) else ""
+            f_insight = (
+                fund_results.get(t, {}).get("insight", "").lower()
+                if isinstance(fund_results.get(t), dict)
+                else ""
+            )
+            q_insight = (
+                quant_results.get(t, {}).get("insight", "").lower()
+                if isinstance(quant_results.get(t), dict)
+                else ""
+            )
             score = 2
-            if "negative" in q_insight: score -= 2
-            if score <= 1.1: ticker_scores[t] = 0
+            if "negative" in q_insight:
+                score -= 2
+            if score <= 1.1:
+                ticker_scores[t] = 0
             else:
                 ticker_scores[t] = score
                 total_score += score
 
         if total_score == 0:
-            return {"draft_strategy": DraftStrategy(
-                strategy_id=f"DEFENSIVE_{state.current_retry}",
-                rationale="Insufficient agent data. Falling back to cash.",
-                parameters={"risk_mode": "extreme_defensive"},
-                target_allocations={"CASH": 1.0}
-            )}
+            return {
+                "draft_strategy": DraftStrategy(
+                    strategy_id=f"DEFENSIVE_{state.current_retry}",
+                    rationale="Insufficient agent data. Falling back to cash.",
+                    parameters={"risk_mode": "extreme_defensive"},
+                    target_allocations={"CASH": 1.0},
+                )
+            }
 
-        alloc = {t: round(s / total_score, 2) for t, s in ticker_scores.items() if s > 0}
-        return {"draft_strategy": DraftStrategy(
-            strategy_id=f"ALPHA_{state.current_retry}",
-            rationale=f"Mock Fallback for {', '.join([t for t, s in ticker_scores.items() if s > 0])}.",
-            parameters={"risk_mode": "moderate"},
-            target_allocations=alloc
-        )}
+        alloc = {
+            t: round(s / total_score, 2) for t, s in ticker_scores.items() if s > 0
+        }
+        return {
+            "draft_strategy": DraftStrategy(
+                strategy_id=f"ALPHA_{state.current_retry}",
+                rationale=f"Mock Fallback for {', '.join([t for t, s in ticker_scores.items() if s > 0])}.",
+                parameters={"risk_mode": "moderate"},
+                target_allocations=alloc,
+            )
+        }
 
     # 2. Real Gemini Call for Strategy Synthesis
     prompt = (
@@ -92,16 +117,20 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
         # We pass the state as the primary input data for the LLM
         llm_strategy = llm_provider.run_structured_chain(
             prompt_text=prompt,
-            input_data=state.model_dump(include={"observations", "request", "feedback_loop"}),
-            output_schema=DraftStrategy
+            input_data=state.model_dump(
+                include={"observations", "request", "feedback_loop"}
+            ),
+            output_schema=DraftStrategy,
         )
         return {"draft_strategy": llm_strategy}
     except Exception as e:
         logger.error(f"Aggregator: Gemini strategy generation failed. Error: {str(e)}")
         # Simple defensive fallback if the AI fails
-        return {"draft_strategy": DraftStrategy(
-            strategy_id="FALLBACK_EMERGENCY",
-            rationale="System Error in AI strategy synthesis. Defaulting to Cash.",
-            parameters={"risk_mode": "extreme_defensive"},
-            target_allocations={"CASH": 1.0}
-        )}
+        return {
+            "draft_strategy": DraftStrategy(
+                strategy_id="FALLBACK_EMERGENCY",
+                rationale="System Error in AI strategy synthesis. Defaulting to Cash.",
+                parameters={"risk_mode": "extreme_defensive"},
+                target_allocations={"CASH": 1.0},
+            )
+        }

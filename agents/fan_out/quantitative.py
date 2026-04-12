@@ -1,11 +1,12 @@
 from typing import Dict, Any
-from adk_framework_v3.tools.market_data import market_data_client
-from adk_framework_v3.core.state import ADKState
+from tools.market_data import market_data_client
+from core.state import ADKState
 import logging
 
 logger = logging.getLogger(__name__)
 
-from adk_framework_v3.tools.risk_engine import similarity_engine
+from tools.risk_engine import similarity_engine
+
 
 def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
     """
@@ -25,7 +26,10 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
 
         if stats.get("status") != "success":
             logger.warning(f"Quant Analyst: Data fetch failed for {formatted_ticker}.")
-            all_results[formatted_ticker] = {"error": stats.get("error"), "status": "no_data"}
+            all_results[formatted_ticker] = {
+                "error": stats.get("error"),
+                "status": "no_data",
+            }
             continue
 
         # 3. Simulated "Analysis" Logic
@@ -43,15 +47,14 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
             "metrics": stats,
             "regime": regime,
             "insight": insight,
-            "status": "completed"
+            "status": "completed",
         }
-
 
     return {
         "observations": {
             "quantitative": {
                 "results": all_results,
-                "status": "completed" if all_results else "no_data"
+                "status": "completed" if all_results else "no_data",
             }
         }
     }

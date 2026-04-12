@@ -1,10 +1,11 @@
 from typing import Dict, Any, List
-from adk_framework_v3.core.state import ADKState, DraftStrategy
-from adk_framework_v3.core.llm_provider import llm_provider
+from core.state import ADKState, DraftStrategy
+from core.llm_provider import llm_provider
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
 
 class EnsembleCommittee:
     """
@@ -24,11 +25,14 @@ class EnsembleCommittee:
             return llm_provider.run_structured_chain(
                 prompt_text=prompt,
                 input_data=state.model_dump(include={"observations", "request"}),
-                output_schema=DraftStrategy
+                output_schema=DraftStrategy,
             )
         except Exception as e:
-            logger.error(f"Ensemble: {style} strategy generation failed. Error: {str(e)}")
+            logger.error(
+                f"Ensemble: {style} strategy generation failed. Error: {str(e)}"
+            )
             return None
+
 
 def ensemble_cio_agent(state: ADKState) -> Dict[str, Any]:
     """
@@ -36,16 +40,17 @@ def ensemble_cio_agent(state: ADKState) -> Dict[str, Any]:
     Orchestrates parallel styles and builds an ensemble strategy.
     """
     print("-> Ensemble CIO: Orchestrating the Strategy Committee.")
-    
+
     if not os.environ.get("GOOGLE_API_KEY"):
         logger.warning("Ensemble: No API Key. Falling back to simple aggregation.")
-        from adk_framework_v3.agents.aggregator import strategy_generator_agent
+        from agents.aggregator import strategy_generator_agent
+
         return strategy_generator_agent(state)
 
     # 1. Parallel Generation (Simulated here for simplicity, real LangGraph would fan-out)
     styles = ["Trend Following", "Mean Reversion", "Statistical Arbitrage"]
     sub_strategies = {}
-    
+
     for style in styles:
         strat = EnsembleCommittee.generate_style_strategy(state, style)
         if strat:
@@ -57,16 +62,21 @@ def ensemble_cio_agent(state: ADKState) -> Dict[str, Any]:
         "Synthesize these into a single Master Strategy. "
         "Weigh the strategies based on their logical consistency and alignment with the Macro Context."
     )
-    
+
     try:
         master_strategy = llm_provider.run_structured_chain(
             prompt_text=prompt,
-            input_data={"sub_strategies": {k: v.model_dump() for k, v in sub_strategies.items()}, "request": state.request.model_dump()},
-            output_schema=DraftStrategy
+            input_data={
+                "sub_strategies": {
+                    k: v.model_dump() for k, v in sub_strategies.items()
+                },
+                "request": state.request.model_dump(),
+            },
+            output_schema=DraftStrategy,
         )
         return {
             "draft_strategy": master_strategy,
-            "ensemble_sub_strategies": sub_strategies
+            "ensemble_sub_strategies": sub_strategies,
         }
     except Exception as e:
         logger.error(f"Ensemble CIO: Master synthesis failed. Error: {str(e)}")

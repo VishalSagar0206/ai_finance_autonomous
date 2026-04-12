@@ -13,9 +13,8 @@
 ## 🚀 Quick Start
 1. **Setup Environment:**
    ```bash
-   uv venv
-   source .venv/bin/activate
-   uv pip install -r pyproject.toml
+   uv sync
+   source .venv/scripts/Activate.ps1
    ```
 2. **Configure Secrets:**
    Create a `.env` file in the workspace root:
@@ -24,7 +23,7 @@
    ```
 3. **Launch the Dashboard:**
    ```bash
-   streamlit run adk_framework_v3/web/dashboard.py
+   uv run python -m streamlit run web/dashboard.py
    ```
 
 ## 🛡️ Validation Standard

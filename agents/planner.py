@@ -1,31 +1,39 @@
 from typing import Dict, Any, List
-from adk_framework_v3.core.state import ADKState
+from core.state import ADKState
 from pydantic import BaseModel, Field
 import logging
 
 logger = logging.getLogger(__name__)
 
+
 class PlannerOutput(BaseModel):
     """Schema for the Planner's structured output."""
-    extracted_tickers: List[str] = Field(description="Ticker symbols extracted from request.")
-    tasks: List[str] = Field(description="Step-by-step goal decomposition.")
-    risk_profile_adjustment: str = Field(description="Determined risk profile (e.g., 'Conservative').")
 
-from adk_framework_v3.core.llm_provider import llm_provider
+    extracted_tickers: List[str] = Field(
+        description="Ticker symbols extracted from request."
+    )
+    tasks: List[str] = Field(description="Step-by-step goal decomposition.")
+    risk_profile_adjustment: str = Field(
+        description="Determined risk profile (e.g., 'Conservative')."
+    )
+
+
+from core.llm_provider import llm_provider
 import os
 
-from adk_framework_v3.tools.compliance_engine import compliance_engine
+from tools.compliance_engine import compliance_engine
+
 
 def planner_agent(state: ADKState) -> Dict[str, Any]:
     """
     LLM-powered Planner Node with Institutional Compliance Pre-Check.
     """
     print(f"-> Planner: Orchestrating strategy for {state.request.asset_class}.")
-    
+
     # 1. Institutional Compliance Pre-Check
     initial_tickers = state.request.tickers or ["AAPL"]
     compliance_results = compliance_engine.check_ticker_compliance(initial_tickers)
-    
+
     safe_tickers = compliance_results["approved_tickers"]
     rejected_tickers = compliance_results["rejected_tickers"]
 
@@ -39,7 +47,7 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
         tasks = [
             f"Analyze fundamental health for {', '.join(safe_tickers)}.",
             f"Generate {req.risk_tolerance}-aware quantitative alpha signals.",
-            "Synthesize results into a cohesive strategy draft."
+            "Synthesize results into a cohesive strategy draft.",
         ]
         return {
             "request": {
@@ -47,9 +55,9 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
                 "risk_tolerance": req.risk_tolerance,
                 "time_horizon": req.time_horizon,
                 "tickers": safe_tickers,
-                "additional_constraints": req.additional_constraints
+                "additional_constraints": req.additional_constraints,
             },
-            "plan": tasks
+            "plan": tasks,
         }
 
     # 2. Real Gemini Call
@@ -58,18 +66,19 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
         llm_out = llm_provider.run_structured_chain(
             prompt_text=prompt,
             input_data=state.request.model_dump(),
-            output_schema=PlannerOutput
+            output_schema=PlannerOutput,
         )
-        
+
         return {
             "request": {
                 "asset_class": state.request.asset_class,
-                "risk_tolerance": llm_out.risk_profile_adjustment or state.request.risk_tolerance,
+                "risk_tolerance": llm_out.risk_profile_adjustment
+                or state.request.risk_tolerance,
                 "time_horizon": state.request.time_horizon,
                 "tickers": llm_out.extracted_tickers or state.request.tickers,
-                "additional_constraints": state.request.additional_constraints
+                "additional_constraints": state.request.additional_constraints,
             },
-            "plan": llm_out.tasks
+            "plan": llm_out.tasks,
         }
     except Exception as e:
         logger.error(f"Planner: Gemini call failed. Falling back. Error: {str(e)}")
