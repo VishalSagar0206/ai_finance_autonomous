@@ -41,6 +41,13 @@ class LLMProvider:
         """
         Executes a prompt through Gemini and parses the response into the requested Pydantic model.
         """
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         model = LLMProvider.get_model()
 
         # Fallback to a basic 'mock' or error if no model is available

@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
 from .state import ADKState, ApprovalStatus
@@ -92,9 +93,23 @@ from langgraph.checkpoint.memory import MemorySaver
 
 def build_graph() -> StateGraph:
     workflow = StateGraph(ADKState)
-    checkpointer = MemorySaver()
+    
+    # Industry-level Durable Checkpointing
+    db_url = os.environ.get("DB_URL")
+    if db_url:
+        print(f"📦 Production Mode: Using PostgreSQL Checkpointer at {db_url}")
+        from langgraph.checkpoint.postgres import PostgresSaver
+        from psycopg_pool import ConnectionPool
+        
+        # We need a pool for high-concurrency production trading
+        pool = ConnectionPool(conninfo=db_url, max_size=20)
+        checkpointer = PostgresSaver(pool)
+        # Note: In a real app, we would run checkpointer.setup() at startup
+    else:
+        print("💾 Dev Mode: Using In-Memory Checkpointer")
+        checkpointer = MemorySaver()
 
-    # ... (Add Nodes logic remains the same)
+    # Add Nodes
     workflow.add_node("planner", planner_node)
     workflow.add_node("fundamental", fundamental_node)
     workflow.add_node("quantitative", quantitative_node)
@@ -113,7 +128,6 @@ def build_graph() -> StateGraph:
     # Entry Point
     workflow.set_entry_point("planner")
 
-    # ... (Parallel fan-out/in logic remains the same)
     parallel_nodes = [
         "fundamental",
         "quantitative",
@@ -142,7 +156,6 @@ def build_graph() -> StateGraph:
     )
 
     # Critic Routing (The Core Loop)
-    # The Critic now evaluates the Strategy AND the Backtest Results
     workflow.add_conditional_edges(
         "critic",
         critic_routing,

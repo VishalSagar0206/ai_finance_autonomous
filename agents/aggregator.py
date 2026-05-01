@@ -16,62 +16,71 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
     """
     print(f"-> Aggregator [Retry {state.current_retry}]: Generating Strategy.")
 
-    # 1. Query Alpha Memory for long-term learning
+    # 1. Check for empty ticker list first - proactive defensive fallback
+    tickers = state.request.tickers
+    if not tickers:
+        print("   [Aggregator] No tickers requested. Triggering defensive fallback.")
+        return {
+            "draft_strategy": DraftStrategy(
+                strategy_id=f"DEFENSIVE_{state.current_retry}",
+                rationale="No tickers provided in the request. Defaulting to Cash preserve.",
+                parameters={"risk_mode": "extreme_defensive"},
+                target_allocations={"CASH": 1.0},
+            )
+        }
+
+    # 2. Query Alpha Memory for long-term learning
     query_text = f"Asset Class: {state.request.asset_class}, Risk: {state.request.risk_tolerance}, Tickers: {state.request.tickers}"
     historical_memory = alpha_memory.retrieve_similar_strategies(query_text)
 
-    # ... (Fallback logic remains same)
+    # 3. Check for successful ticker data before proceeding
+    obs = state.observations
+
+    def get_results(obj):
+        if not obj: return {}
+        if hasattr(obj, "results"): return obj.results
+        if isinstance(obj, dict): return obj.get("results", {})
+        return {}
+
+    fund_results = get_results(obs.fundamental)
+    quant_results = get_results(obs.quantitative)
+    sent_results = get_results(obs.sentiment)
+
+    def get_status(res):
+        if isinstance(res, dict): return res.get("status")
+        return getattr(res, "status", None)
+
+    # A ticker is successful if any analyst completed it
+    successful_tickers = [
+        t for t in tickers if (
+            get_status(fund_results.get(t)) == "completed" or 
+            get_status(quant_results.get(t)) == "completed" or
+            get_status(sent_results.get(t)) == "completed"
+        )
+    ]
+
+    if not successful_tickers:
+        print("   [Aggregator] No successful ticker data found. Triggering defensive fallback.")
+        return {
+            "draft_strategy": DraftStrategy(
+                strategy_id=f"DEFENSIVE_{state.current_retry}",
+                rationale="No valid market data retrieved for requested assets. Defaulting to Cash preserve.",
+                parameters={"risk_mode": "extreme_defensive"},
+                target_allocations={"CASH": 1.0},
+            )
+        }
+
+    # 4. Path A: Mock Fallback (No API Key)
     if not os.environ.get("GOOGLE_API_KEY"):
-        # ...
         logger.warning("Aggregator: No API Key. Falling back to mock generator logic.")
-        obs = state.observations
-        tickers = state.request.tickers
-
-        def get_results(obj):
-            if not obj:
-                return {}
-            if hasattr(obj, "results"):
-                return obj.results
-            if isinstance(obj, dict):
-                return obj.get("results", {})
-            return {}
-
-        fund_results = get_results(obs.fundamental)
-        quant_results = get_results(obs.quantitative)
-
-        def get_status(res):
-            if isinstance(res, dict):
-                return res.get("status")
-            return getattr(res, "status", None)
-
-        successful_tickers = [
-            t for t in tickers if get_status(fund_results.get(t)) == "completed"
-        ]
-
-        if not successful_tickers:
-            return {
-                "draft_strategy": DraftStrategy(
-                    strategy_id=f"DEFENSIVE_{state.current_retry}",
-                    rationale="Insufficient agent data. Falling back to cash.",
-                    parameters={"risk_mode": "extreme_defensive"},
-                    target_allocations={"CASH": 1.0},
-                )
-            }
-
+        
         # Conflict Resolution in Mock
         ticker_scores = {}
         total_score = 0
         for t in successful_tickers:
-            f_insight = (
-                fund_results.get(t, {}).get("insight", "").lower()
-                if isinstance(fund_results.get(t), dict)
-                else ""
-            )
-            q_insight = (
-                quant_results.get(t, {}).get("insight", "").lower()
-                if isinstance(quant_results.get(t), dict)
-                else ""
-            )
+            f_insight = fund_results.get(t, {}).get("insight", "").lower() if isinstance(fund_results.get(t), dict) else ""
+            q_insight = quant_results.get(t, {}).get("insight", "").lower() if isinstance(quant_results.get(t), dict) else ""
+            
             score = 2
             if "negative" in q_insight:
                 score -= 2
@@ -85,15 +94,13 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
             return {
                 "draft_strategy": DraftStrategy(
                     strategy_id=f"DEFENSIVE_{state.current_retry}",
-                    rationale="Insufficient agent data. Falling back to cash.",
+                    rationale="Insufficient high-conviction signals. Falling back to cash.",
                     parameters={"risk_mode": "extreme_defensive"},
                     target_allocations={"CASH": 1.0},
                 )
             }
 
-        alloc = {
-            t: round(s / total_score, 2) for t, s in ticker_scores.items() if s > 0
-        }
+        alloc = {t: round(s / total_score, 2) for t, s in ticker_scores.items() if s > 0}
         return {
             "draft_strategy": DraftStrategy(
                 strategy_id=f"ALPHA_{state.current_retry}",
@@ -103,7 +110,7 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
             )
         }
 
-    # 2. Real Gemini Call for Strategy Synthesis
+    # 5. Path B: Real Gemini Call for Strategy Synthesis
     prompt = (
         "Synthesize the provided AgentObservations into a coherent investment strategy. "
         "Analyze Fundamental, Quantitative, and Sentiment signals to determine the best allocations. "
@@ -117,9 +124,7 @@ def strategy_generator_agent(state: ADKState) -> Dict[str, Any]:
         # We pass the state as the primary input data for the LLM
         llm_strategy = llm_provider.run_structured_chain(
             prompt_text=prompt,
-            input_data=state.model_dump(
-                include={"observations", "request", "feedback_loop"}
-            ),
+            input_data=state.model_dump(include={"observations", "request", "feedback_loop"}),
             output_schema=DraftStrategy,
         )
         return {"draft_strategy": llm_strategy}

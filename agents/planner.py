@@ -61,13 +61,20 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
         }
 
     # 2. Real Gemini Call
-    prompt = "Decompose this financial request into a list of tasks for specialized agents. Extract any tickers mentioned."
+    prompt = "Decompose this financial request into a list of tasks for specialized agents. Extract any tickers mentioned. Only include tickers that are compliant."
     try:
+        # Use a wrapper for structured chain to ensure event loop if needed
         llm_out = llm_provider.run_structured_chain(
             prompt_text=prompt,
-            input_data=state.request.model_dump(),
+            input_data={
+                "request": state.request.model_dump(),
+                "compliant_tickers": safe_tickers
+            },
             output_schema=PlannerOutput,
         )
+
+        # Ensure we only use compliant tickers
+        final_tickers = [t for t in (llm_out.extracted_tickers or safe_tickers) if t in safe_tickers]
 
         return {
             "request": {
@@ -75,7 +82,7 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
                 "risk_tolerance": llm_out.risk_profile_adjustment
                 or state.request.risk_tolerance,
                 "time_horizon": state.request.time_horizon,
-                "tickers": llm_out.extracted_tickers or state.request.tickers,
+                "tickers": final_tickers,
                 "additional_constraints": state.request.additional_constraints,
             },
             "plan": llm_out.tasks,

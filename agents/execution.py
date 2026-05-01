@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 from tools.alpha_memory import alpha_memory
 
 from tools.ledger import trade_ledger
+from tools.broker import sor_router
 
 
 class ExecutionAgent:

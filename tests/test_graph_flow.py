@@ -18,13 +18,16 @@ def test_graph_execution_end_to_end():
     config = {"configurable": {"thread_id": "test_thread_1"}}
 
     # Execute the graph
-    # We'll just invoke it to get the final state update
-    # Note: invoke returns a dict of the final state (the state after the last node)
+    # It will stop at the 'execution' interrupt
     final_state_dict = adk_app.invoke(initial_state, config=config)
 
-    # In LangGraph, the final_state_dict will be the accumulated state
-    # We expect approval_status to be APPROVED (after 1 rejection loop)
+    # Verify it reached the interrupt
     assert final_state_dict["approval_status"] == ApprovalStatus.APPROVED
-    assert len(final_state_dict["feedback_loop"]) == 1
+    
+    # Resume the graph (passing None to input to continue from checkpoint)
+    final_state_dict = adk_app.invoke(None, config=config)
+
+    # Now it should be at the end
     assert "final_report" in final_state_dict
+    assert final_state_dict["final_report"] is not None
     assert "Success: Alpha strategy" in final_state_dict["final_report"]

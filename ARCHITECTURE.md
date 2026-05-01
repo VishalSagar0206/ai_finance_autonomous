@@ -1,32 +1,55 @@
-# ADK v4.0 Architectural Design
+# ADK v4.0 Architectural Design (Ultimate Stack)
 
-## 1. Hierarchical Shared Session State (H-SSS)
-The backbone of ADK is a centralized, Pydantic-enforced state object. This ensures 100% data integrity as information passes through parallel and cyclic nodes.
+## 1. System Topology
+The ADK v4.0 framework has transitioned from a monolithic prototype to a fully decoupled, cloud-native microservice architecture.
 
-- **Request**: User intent and constraints.
-- **Observations**: Multi-agent analytical outputs (Fundamental, Quant, Sentiment).
-- **Alpha Memory**: Retrieved context from past successful runs.
-- **Feedback Loop**: Recursive critiques from the Multi-Factor Critic.
+- **Frontend (UI):** Streamlit (Glassmorphism Dashboard) / Next.js.
+- **Backend (API):** FastAPI with Server-Sent Events (SSE) for real-time LangGraph streaming.
+- **Orchestration:** LangGraph (Cyclic DAG execution).
+- **Deep Learning Core:** PyTorch + Scikit-Learn.
+- **Durable State & Memory:** PostgreSQL (Checkpointer) + ChromaDB (Vector Search).
+- **Execution:** Alpaca Trade API.
 
-## 2. LangGraph Orchestration
-The framework uses a Cyclic Directed Acyclic Graph (DAG) pattern:
+## 2. LangGraph Orchestration (Cyclic DAG)
+The core logic flows through a self-healing, multi-agent loop:
 
 ```text
-[Planner] -> [Analysts (Fan-out)] -> [Ensemble CIO] -> [Critic] --(Reject)--> [Optimizer] -> [Meta-Reflector] --|
-                                         |                                                               |
-                                         |---(Approve)--> [Stress Tester] -> [Quant Coder] --(Error)-----|
-                                                                              |
-                                                                         (Success)
-                                                                              |
-                                                                        [HITL Interrupt]
-                                                                              |
-                                                                        [Execution Agent] -> [Reporting]
+[Planner] ---> [Analysts (Fundamental, Quant, Macro, Sentiment)]
+                 |
+                 v
+           [Strategy CIO] <-----------------------------------------|
+                 |                                                  |
+                 v                                                  |
+           [Quant Coder] (Trains PyTorch Model)                     |
+                 |                                                  |
+                 v                                                  |
+          [Risk Critic] ----(Rejected)----> [Optimizer] ---> [Meta-Reflector]
+                 |
+             (Approved)
+                 |
+         [HITL Interrupt] (Awaiting Human Compliance)
+                 |
+           [Execution] (Alpaca API)
+                 |
+            [Reporting]
 ```
 
-## 3. High-Intelligence Nodes
-- **Gemini 3.1 Pro Preview**: Serves as the primary reasoning engine for non-linear decision making (Planning, Synthesis, Critique).
-- **ChromaDB**: Provides semantic retrieval for Alpha Memory.
-- **Local Sandbox**: An isolated subprocess environment for executing generated Python code safely.
+## 3. The Deep Learning Alpha Engine
+Instead of basic mathematical backtests, the `Quant Coder` writes and executes a **Multi-Layer Perceptron (PyTorch)**.
+1. **Feature Engineering:** Extracts historical returns over an `N-day` lookback window.
+2. **Training:** Trains the `AlphaNet` model on 80% of historical data.
+3. **Prediction:** Evaluates the 20% Out-Of-Sample data to predict asset movement.
+4. **XAI (Explainable AI):** Extracts layer weights (`fc1.weight`) to generate Feature Importance metrics, explaining *why* the AI made the trade.
 
-## 4. Conflict Resolution Engine
-Located within the `Ensemble CIO`, this rule-based and AI-driven engine weights signals from analysts. If signals are contradictory (e.g., Bullish Fundamental vs. Bearish Quant), the system dynamically reduces the ticker's allocation to zero to prioritize capital preservation.
+## 4. Hierarchical Shared Session State (H-SSS)
+The LangGraph state is strictly typed using Pydantic and persisted to **PostgreSQL**.
+- **UserRequest:** Initial capital, risk tolerance, and asset universe.
+- **Observations:** Parallel agent outputs.
+- **DraftStrategy:** Current allocation proposals.
+- **BacktestResults:** Output of the PyTorch neural network, including the Equity Curve.
+- **FeedbackLoop:** Accumulates AI critiques to prevent repeated mistakes during optimization cycles.
+
+## 5. Security & Infrastructure
+- **Sandboxed Execution:** AI-generated Python code executes locally (intended for Docker/Firecracker in prod).
+- **Connection Pooling:** Uses `psycopg_pool` to handle concurrent state retrieval requests.
+- **Secrets Management:** Environment variables strictly manage Alpaca and Gemini keys.

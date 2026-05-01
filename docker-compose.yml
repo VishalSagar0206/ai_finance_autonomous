@@ -1,26 +1,53 @@
-services:
-  adk-brain:
-    build: .
-    container_name: adk_brain_v4
-    ports:
-      - "8501:8501"
-    env_file:
-      - ../.env
-    volumes:
-      # Persist the Alpha Memory (Vector DB)
-      - adk_alpha_memory:/app/alpha_memory
-      # Persist the Trade Ledger (SQL DB)
-      - ./trade_ledger.db:/app/trade_ledger.db
-      # Persist Logs
-      - ./logs:/app/logs
-    restart: unless-stopped
-    networks:
-      - adk-network
+version: '3.8'
 
-networks:
-  adk-network:
-    driver: bridge
+services:
+  # 1. Core API Server (Decoupled Backend)
+  adk-api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: adk-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-MOCK_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-MOCK_SECRET}
+      - DB_URL=postgresql://adk_user:adk_pass@postgres:5432/adk_state
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - .:/app
+
+  # 2. Durable State (LangGraph Checkpointer & Ledger)
+  postgres:
+    image: postgres:15-alpine
+    container_name: adk-postgres
+    environment:
+      POSTGRES_USER: adk_user
+      POSTGRES_PASSWORD: adk_pass
+      POSTGRES_DB: adk_state
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adk_user -d adk_state"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Vector Database (Alpha Memory)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: adk-chroma
+    ports:
+      - "8000" # Internal port, exposed randomly or linked via internal network
+    volumes:
+      - chromadata:/chroma/chroma
 
 volumes:
-  adk_alpha_memory:
-    driver: local
+  pgdata:
+  chromadata:

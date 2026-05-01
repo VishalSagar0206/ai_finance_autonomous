@@ -1,10 +1,15 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from core.state import ADKState
 from core.llm_provider import llm_provider
+from pydantic import BaseModel, Field
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+class MetaInstructions(BaseModel):
+    """Schema for updated system instructions."""
+    instructions: Dict[str, str] = Field(description="Map of agent name to new instructions.")
 
 
 def meta_reflective_agent(state: ADKState) -> Dict[str, Any]:
@@ -32,10 +37,10 @@ def meta_reflective_agent(state: ADKState) -> Dict[str, Any]:
                 "execution_logs": state.execution_logs,
                 "current_instructions": state.system_instructions,
             },
-            output_schema=Dict[str, str],  # Schema for instruction map
+            output_schema=MetaInstructions,  # Schema for instruction map
         )
 
-        return {"system_instructions": llm_out}
+        return {"system_instructions": llm_out.instructions}
     except Exception as e:
         logger.error(f"Meta-Reflector: Reflection failed. Error: {str(e)}")
         return {}

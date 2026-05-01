@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from tools.market_data import market_data_client
+from tools.market_data import market_data_client, MarketDataClient
 from core.state import ADKState
 import logging
 
@@ -28,7 +28,7 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
             logger.warning(f"Quant Analyst: Data fetch failed for {formatted_ticker}.")
             all_results[formatted_ticker] = {
                 "error": stats.get("error"),
-                "status": "no_data",
+                "status": "failed",
             }
             continue
 

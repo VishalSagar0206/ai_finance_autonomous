@@ -34,8 +34,13 @@ def multi_factor_critic_agent(state: ADKState) -> Dict[str, Any]:
             "feedback_loop": ["No strategy to evaluate."],
         }
 
-    # 1. Mathematical Risk Engine (Correlation & VaR)
+    # 0. Defensive Auto-Approval
     strategy = state.draft_strategy
+    if strategy.strategy_id.startswith(("DEFENSIVE", "FALLBACK")) or strategy.target_allocations.get("CASH", 0.0) >= 0.99:
+        print("   [Critic] Defensive/Fallback strategy detected (CASH >= 99%). Auto-approving.")
+        return {"approval_status": ApprovalStatus.APPROVED}
+
+    # 1. Mathematical Risk Engine (Correlation & VaR)
     tickers = [t for t in strategy.target_allocations.keys() if t != "CASH"]
     weights = strategy.target_allocations
 
