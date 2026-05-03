@@ -143,12 +143,29 @@ def run_neural_backtest():
     annualized_volatility = weighted_returns.std() * np.sqrt(252)
     sharpe_ratio = (weighted_returns.mean() * 252) / annualized_volatility if annualized_volatility > 0 else 0
     
+    # Sortino Ratio (Downside volatility only)
+    downside_returns = weighted_returns[weighted_returns < 0]
+    downside_vol = downside_returns.std() * np.sqrt(252)
+    sortino_ratio = (weighted_returns.mean() * 252) / downside_vol if downside_vol > 0 else 0
+    
     cum_returns = (1 + weighted_returns).cumprod()
     bench_cum = (1 + benchmark_returns).cumprod()
     
     rolling_max = cum_returns.cummax()
     drawdowns = (cum_returns - rolling_max) / rolling_max
     max_drawdown = drawdowns.min() if not pd.isna(drawdowns.min()) else 0.0
+    
+    # Calmar Ratio
+    calmar_ratio = (total_return / abs(max_drawdown)) if max_drawdown != 0 else 0
+
+    # 6. Monte Carlo Robustness Test (Institutional standard)
+    # We shuffle returns 100 times to see if the strategy survives 'noise'
+    mc_final_returns = []
+    for _ in range(100):
+        shuffled = weighted_returns.sample(frac=1.0, replace=True)
+        mc_final_returns.append((1 + shuffled).prod() - 1)
+    
+    mc_pass_rate = sum(1 for r in mc_final_returns if r > 0) / 100.0 # % of iterations with positive return
 
     # Build Equity Curve Data
     equity_curve = []
@@ -159,7 +176,10 @@ def run_neural_backtest():
         "total_return": float(total_return),
         "annualized_volatility": float(annualized_volatility),
         "sharpe_ratio": float(sharpe_ratio),
+        "sortino_ratio": float(sortino_ratio),
+        "calmar_ratio": float(calmar_ratio),
         "max_drawdown": float(max_drawdown),
+        "mc_robustness_score": float(mc_pass_rate),
         "status": "success",
         "nn_loss": float(loss.item()),
         "equity_curve": equity_curve,

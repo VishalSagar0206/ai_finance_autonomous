@@ -8,6 +8,7 @@
 - **Institutional Execution (Alpaca):** Directly wired into the Alpaca Trade API for real-time paper and live market bracket order execution.
 - **Decoupled Microservice (FastAPI):** A high-performance REST/SSE backend that streams real-time AI node traversals to any frontend.
 - **Durable State Infrastructure (PostgreSQL):** Robust LangGraph checkpointing utilizing Postgres and Connection Pooling, deployed via Docker Compose.
+- **Institutional Risk Scorecard:** Advanced verification metrics including Sortino Ratio, Calmar Ratio, and automated **Monte Carlo Robustness Testing** (100+ randomized simulations per strategy).
 - **Glassmorphism Command Center:** A top-tier Streamlit UI featuring animated agent DAGs, interactive Altair equity curves, and explicit Human-In-The-Loop (HITL) compliance gates.
 
 ## 🏗️ Architecture

@@ -356,12 +356,21 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
     with t2:
         bt = state.get("backtest_results")
         if bt and bt.get("status") == "success":
-            st.markdown("### Neural Backtest Performance")
+            st.markdown("### Institutional Risk Scorecard")
+            
+            # Primary Metrics Row
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Sharpe Ratio", f"{bt.get('sharpe_ratio', 0):.2f}")
-            m2.metric("Max Drawdown", f"{bt.get('max_drawdown', 0)*100:.1f}%")
-            m3.metric("Annual Vol", f"{bt.get('annualized_volatility', 0)*100:.1f}%")
-            m4.metric("NN Loss", f"{bt.get('nn_loss', 0):.4f}")
+            m2.metric("Sortino Ratio", f"{bt.get('sortino_ratio', 0):.2f}", help="Risk-adjusted return focusing on downside volatility.")
+            m3.metric("Calmar Ratio", f"{bt.get('calmar_ratio', 0):.2f}", help="Annual return vs Max Drawdown.")
+            m4.metric("Monte Carlo Score", f"{bt.get('mc_robustness_score', 0)*100:.0f}%", help="Percentage of randomized simulations that remained profitable.")
+            
+            # Secondary Metrics Row
+            s1, s2, s3, s4 = st.columns(4)
+            s1.metric("Max Drawdown", f"{bt.get('max_drawdown', 0)*100:.1f}%")
+            s2.metric("Annual Vol", f"{bt.get('annualized_volatility', 0)*100:.1f}%")
+            s3.metric("NN Training Loss", f"{bt.get('nn_loss', 0):.4f}")
+            s4.metric("Total Return", f"{bt.get('total_return', 0)*100:.1f}%")
             
             st.markdown("---")
             
