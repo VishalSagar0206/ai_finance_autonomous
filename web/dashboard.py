@@ -92,8 +92,61 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+import graphviz
+
 # ==========================================
-# HELPER: ENHANCED GRAPH VISUALIZATION
+# HELPER: LIVE GRAPHVIZ (FOR LOOP STABILITY)
+# ==========================================
+def render_live_tree(completed_nodes):
+    dot = graphviz.Digraph()
+    dot.attr(bgcolor='transparent')
+    dot.attr('node', fontcolor='#f8fafc', fontname='Inter', fontsize='12', shape='box', style='rounded,filled')
+    dot.attr('edge', color='#475569', arrowhead='vee')
+
+    # Define Nodes
+    nodes = {
+        "planner": "Master Planner",
+        "fundamental": "Fundamental Analyst",
+        "quantitative": "Quant Analyst",
+        "alternative": "Alt Data Analyst",
+        "macroeconomic": "Macro Analyst",
+        "sentiment": "Sentiment Analyst",
+        "aggregator": "Strategy CIO",
+        "coder": "Quant Coder",
+        "critic": "Risk Critic",
+        "optimizer": "Optimizer",
+        "meta_reflective": "Meta-Reflector",
+        "execution": "SOR Execution",
+        "reporting": "Final Report"
+    }
+
+    for node, label in nodes.items():
+        # Institutional Green for completed, Slate for pending
+        fill = "#10b981" if node in completed_nodes else "#1e293b"
+        dot.node(node, label, fillcolor=fill)
+
+    # Define Hierarchy
+    dot.edge("planner", "fundamental")
+    dot.edge("planner", "quantitative")
+    dot.edge("planner", "alternative")
+    dot.edge("planner", "macroeconomic")
+    dot.edge("planner", "sentiment")
+    
+    for n in ["fundamental", "quantitative", "alternative", "macroeconomic", "sentiment"]:
+        dot.edge(n, "aggregator")
+        
+    dot.edge("aggregator", "coder")
+    dot.edge("coder", "critic")
+    dot.edge("critic", "execution")
+    dot.edge("critic", "optimizer")
+    dot.edge("optimizer", "meta_reflective")
+    dot.edge("meta_reflective", "aggregator")
+    dot.edge("execution", "reporting")
+
+    st.graphviz_chart(dot, use_container_width=True)
+
+# ==========================================
+# HELPER: ENHANCED GRAPH VISUALIZATION (FINAL)
 # ==========================================
 def render_agent_graph(completed_nodes):
     nodes = []
@@ -200,8 +253,7 @@ if st.session_state.get("running"):
     col_graph, col_logs = st.columns([3, 1])
     
     with col_graph:
-        st.markdown("#### Agent DAG (Initializing...)")
-        render_agent_graph(set()) # Render empty graph initially to prevent loop crashes
+        graph_placeholder = st.empty()
         
     with col_logs:
         st.markdown("#### Execution Stream")
@@ -223,13 +275,22 @@ if st.session_state.get("running"):
     try:
         # Use status for better UX
         with st.status("Initializing High-Frequency Graph...", expanded=True) as status:
+            # Initial render
+            with graph_placeholder.container():
+                render_live_tree(completed_nodes)
+
             for event in adk_app.stream(initial_state, config=thread_config):
                 for node_name, _ in event.items():
                     completed_nodes.add(node_name)
                     ts = datetime.now().strftime("%H:%M:%S")
                     events_log.append(f"[{ts}] NODE_COMPLETE: {node_name.upper()}")
                     
+                    # Update Logs
                     log_terminal.markdown(f"<div class='terminal-log'>{'<br>'.join(events_log[-20:])}</div>", unsafe_allow_html=True)
+                    
+                    # Update Live Tree (Colored)
+                    with graph_placeholder.container():
+                        render_live_tree(completed_nodes)
                     
                     status.update(label=f"Active Agent: {node_name.upper()}")
                     
