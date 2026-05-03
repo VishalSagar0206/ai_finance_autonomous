@@ -160,7 +160,7 @@ def render_agent_graph(completed_nodes):
         shakeBeforeClick=True
     )
     
-    return agraph(nodes=nodes, edges=edges, config=config, key=f"agent_graph_{len(completed_nodes)}")
+    return agraph(nodes=nodes, edges=edges, config=config)
 
 # ==========================================
 # SIDEBAR
@@ -200,7 +200,8 @@ if st.session_state.get("running"):
     col_graph, col_logs = st.columns([3, 1])
     
     with col_graph:
-        graph_placeholder = st.empty()
+        st.markdown("#### Agent DAG (Initializing...)")
+        render_agent_graph(set()) # Render empty graph initially to prevent loop crashes
         
     with col_logs:
         st.markdown("#### Execution Stream")
@@ -229,9 +230,6 @@ if st.session_state.get("running"):
                     events_log.append(f"[{ts}] NODE_COMPLETE: {node_name.upper()}")
                     
                     log_terminal.markdown(f"<div class='terminal-log'>{'<br>'.join(events_log[-20:])}</div>", unsafe_allow_html=True)
-                    
-                    with graph_placeholder.container():
-                        render_agent_graph(completed_nodes)
                     
                     status.update(label=f"Active Agent: {node_name.upper()}")
                     
@@ -266,7 +264,15 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
     t1, t2, t3, t4, t5 = st.tabs(["Overview", "Backtest (PyTorch)", "Stress Test", "Audit Trail", "Alpha Code"])
 
     with t1:
+        st.markdown("### Orchestration DAG (Completed)")
+        # Determine completed nodes for visualization
+        final_nodes = {"planner", "fundamental", "quantitative", "alternative", "macroeconomic", "sentiment", "aggregator", "coder", "critic"}
+        if state.get("approval_status") == ApprovalStatus.APPROVED:
+            final_nodes.add("stress_tester")
+        render_agent_graph(final_nodes)
+        
         if strategy:
+            st.markdown("---")
             st.markdown("### Strategic Rationale")
             st.info(strategy.rationale)
             
