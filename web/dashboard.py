@@ -160,7 +160,7 @@ def render_agent_graph(completed_nodes):
         shakeBeforeClick=True
     )
     
-    return agraph(nodes=nodes, edges=edges, config=config)
+    return agraph(nodes=nodes, edges=edges, config=config, key=f"agent_graph_{len(completed_nodes)}")
 
 # ==========================================
 # SIDEBAR
