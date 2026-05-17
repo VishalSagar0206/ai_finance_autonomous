@@ -16,6 +16,9 @@ class PlannerOutput(BaseModel):
     risk_profile_adjustment: str = Field(
         description="Determined risk profile (e.g., 'Conservative')."
     )
+    investor_focus: str = Field(
+        description="The primary analytical focus based on investor type (e.g. 'Volatility/Sentiment' for Intraday)."
+    )
 
 
 from core.llm_provider import llm_provider
@@ -44,16 +47,33 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
     if not os.environ.get("GOOGLE_API_KEY"):
         logger.warning("Planner: No API Key found. Falling back to mock planner logic.")
         req = state.request
-        tasks = [
-            f"Analyze fundamental health for {', '.join(safe_tickers)}.",
-            f"Generate {req.risk_tolerance}-aware quantitative alpha signals.",
-            "Synthesize results into a cohesive strategy draft.",
-        ]
+        
+        # Customize tasks based on investor type
+        if req.investor_type == "INTRADAY":
+            tasks = [
+                f"Analyze high-frequency sentiment and volatility for {', '.join(safe_tickers)}.",
+                "Identify intraday momentum signals and support/resistance levels.",
+                "Construct a high-turnover strategy with tight stop-losses."
+            ]
+        elif req.investor_type == "SHORT_TERM":
+            tasks = [
+                f"Analyze technical indicators and recent news for {', '.join(safe_tickers)}.",
+                "Check for upcoming earnings or macro catalysts.",
+                "Draft a swing-trading strategy focusing on 1-4 week price targets."
+            ]
+        else: # LONG_TERM
+            tasks = [
+                f"Analyze fundamental health and industry position for {', '.join(safe_tickers)}.",
+                f"Generate {req.risk_tolerance}-aware quantitative alpha signals.",
+                "Synthesize results into a long-term value-driven strategy draft.",
+            ]
+            
         return {
             "request": {
                 "asset_class": req.asset_class,
                 "risk_tolerance": req.risk_tolerance,
                 "time_horizon": req.time_horizon,
+                "investor_type": req.investor_type,
                 "tickers": safe_tickers,
                 "additional_constraints": req.additional_constraints,
             },
@@ -61,14 +81,15 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
         }
 
     # 2. Real Gemini Call
-    prompt = "Decompose this financial request into a list of tasks for specialized agents. Extract any tickers mentioned. Only include tickers that are compliant."
+    prompt = f"Decompose this financial request for a {state.request.investor_type} investor into specialized tasks. Focus on indicators relevant to the {state.request.investor_type} horizon. Extract compliant tickers."
     try:
         # Use a wrapper for structured chain to ensure event loop if needed
         llm_out = llm_provider.run_structured_chain(
             prompt_text=prompt,
             input_data={
                 "request": state.request.model_dump(),
-                "compliant_tickers": safe_tickers
+                "compliant_tickers": safe_tickers,
+                "investor_type": state.request.investor_type
             },
             output_schema=PlannerOutput,
         )
@@ -82,6 +103,7 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
                 "risk_tolerance": llm_out.risk_profile_adjustment
                 or state.request.risk_tolerance,
                 "time_horizon": state.request.time_horizon,
+                "investor_type": state.request.investor_type,
                 "tickers": final_tickers,
                 "additional_constraints": state.request.additional_constraints,
             },

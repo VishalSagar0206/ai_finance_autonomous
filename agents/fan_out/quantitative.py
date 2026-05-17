@@ -34,14 +34,23 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
 
         # 3. Simulated "Analysis" Logic
         momentum = stats.get("momentum_pct", 0)
+        investor_type = state.request.investor_type
 
-        insight = f"Regime Match: {regime['matched_regime']}. "
-        if momentum > 0.05:
-            insight += "Strong positive momentum."
-        elif momentum < -0.05:
-            insight += "Significant negative momentum."
+        insight = f"[{investor_type.value}] Regime Match: {regime['matched_regime']}. "
+        
+        if investor_type == "INTRADAY":
+            volatility = stats.get("volatility_std", 0)
+            if volatility and volatility > 0.02:
+                insight += "High intraday volatility provides trading opportunities."
+            else:
+                insight += "Low volatility may limit intraday gains."
         else:
-            insight += "Neutral momentum."
+            if momentum > 0.05:
+                insight += "Strong positive momentum."
+            elif momentum < -0.05:
+                insight += "Significant negative momentum."
+            else:
+                insight += "Neutral momentum."
 
         all_results[formatted_ticker] = {
             "metrics": stats,

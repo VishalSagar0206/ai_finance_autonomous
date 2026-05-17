@@ -26,14 +26,20 @@ def fundamental_analyst_agent(state: ADKState) -> Dict[str, Any]:
         pe_ratio = summary.get("trailing_pe")
         roe = summary.get("return_on_equity")
 
-        insight = "Fundamental state is neutral."
+        investor_type = state.request.investor_type
+        insight = f"[{investor_type.value}] Fundamental state is neutral."
         if roe and roe > 0.2:
-            insight = "Excellent profitability/ROE."
+            insight = f"[{investor_type.value}] Excellent profitability/ROE."
 
-        if pe_ratio and pe_ratio > 40:
-            insight += " Possible overvaluation."
-        elif pe_ratio and pe_ratio < 15:
-            insight += " Attractive P/E."
+        if investor_type == "LONG_TERM":
+            if pe_ratio and pe_ratio > 40:
+                insight += " High P/E may be a concern for value-driven long-term hold."
+            elif pe_ratio and pe_ratio < 15:
+                insight += " Attractive P/E for long-term accumulation."
+        elif investor_type == "INTRADAY":
+            insight += " Fundamentals are secondary for intraday; focusing on news catalysts."
+        else: # SHORT_TERM
+            insight += " Monitoring for short-term earnings surprises."
 
         # Edge Case: Check if we actually got info/summary data
         is_invalid = summary.get("status") == "error" or (

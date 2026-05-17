@@ -13,7 +13,7 @@ from core.config import config
 from tools.market_data import MarketDataClient
 
 # ==========================================
-# ADVANCED PAGE STYLING (Glassmorphism & Neon)
+# ADVANCED PAGE STYLING (Bloomberg / Foundry Aesthetic)
 # ==========================================
 st.set_page_config(
     page_title="ADK v4.0 | Institutional Alpha",
@@ -24,70 +24,140 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Premium Dark Theme */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+    
+    /* Global Reset - Deep Dark Theme */
     .stApp {
-        background: radial-gradient(circle at top left, #0f172a, #020617);
-        color: #e2e8f0;
+        background-color: #0d1117;
+        color: #c9d1d9;
+        font-family: 'Inter', sans-serif;
     }
+    
+    /* Clean up default Streamlit padding */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     
     /* Custom Sidebar */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.8);
-        border-right: 1px solid #1e293b;
+        background-color: #161b22;
+        border-right: 1px solid #30363d;
     }
 
-    /* Glassmorphism Cards */
+    /* Professional Metric Widgets */
+    [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 2.2rem !important;
+        font-weight: 700 !important;
+        color: #58a6ff !important;
+    }
+    [data-testid="stMetricLabel"] {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8b949e !important;
+    }
+    [data-testid="stMetricDelta"] {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Glassmorphism / Dark Panel Cards */
     .metric-card {
-        background: rgba(30, 41, 59, 0.5);
-        backdrop-filter: blur(10px);
+        background: linear-gradient(145deg, #161b22, #0d1117);
         padding: 24px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         text-align: left;
-        transition: transform 0.2s;
+        transition: transform 0.2s, border-color 0.2s;
+        margin-bottom: 1rem;
     }
     .metric-card:hover {
-        transform: translateY(-5px);
-        border-color: #38bdf8;
+        transform: translateY(-2px);
+        border-color: #58a6ff;
+    }
+    
+    .metric-card h3 { 
+        margin-top: 0; 
+        font-size: 0.85rem; 
+        color: #8b949e; 
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-family: 'Inter', sans-serif;
+    }
+    .metric-card p { 
+        font-family: 'JetBrains Mono', monospace; 
+        font-size: 1.8rem; 
+        color: #3fb950; 
+        margin: 0; 
+        font-weight: bold; 
     }
     
     /* Terminal Console */
     .terminal-log {
-        background-color: #000;
-        color: #10b981;
+        background-color: #010409;
+        color: #3fb950;
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
         padding: 20px;
-        border-radius: 12px;
+        border-radius: 8px;
         height: 500px;
         overflow-y: auto;
-        border: 1px solid #064e3b;
-        box-shadow: inset 0 0 10px #064e3b;
+        border: 1px solid #30363d;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
         font-size: 0.85rem;
-        line-height: 1.5;
+        line-height: 1.6;
     }
 
     /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 2px;
+        border-bottom: 1px solid #30363d;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: rgba(30, 41, 59, 0.5);
-        border-radius: 8px 8px 0 0;
-        padding: 10px 20px;
-        color: #94a3b8;
+        background-color: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 12px 24px;
+        color: #8b949e;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #38bdf8 !important;
-        color: #fff !important;
+        background-color: transparent !important;
+        color: #58a6ff !important;
+        border-bottom: 2px solid #58a6ff !important;
     }
 
     /* Titles */
     h1 {
+        font-family: 'Inter', sans-serif;
         font-weight: 800 !important;
-        background: linear-gradient(to right, #38bdf8, #818cf8);
+        background: linear-gradient(to right, #58a6ff, #bc8cff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         letter-spacing: -0.02em;
+        margin-bottom: 0 !important;
+    }
+    h2, h3, h4 {
+        font-family: 'Inter', sans-serif;
+        color: #c9d1d9;
+    }
+    
+    /* Top Header Meta Info */
+    .header-meta {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: #8b949e;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -224,6 +294,16 @@ with st.sidebar:
     
     st.subheader("Global Strategy")
     asset_class = st.selectbox("Asset Class", ["Equities", "Forex", "Crypto"])
+    investor_type_ui = st.selectbox("Investor Profile", ["Long Term", "Short Term", "Intraday"])
+    
+    # Map UI selection to Enum values expected by the backend
+    type_map = {
+        "Long Term": "LONG_TERM",
+        "Short Term": "SHORT_TERM",
+        "Intraday": "INTRADAY"
+    }
+    investor_type = type_map[investor_type_ui]
+
     tickers_input = st.text_area("Investment Universe", value="RELIANCE, AAPL, GOOGL, NVDA", height=100)
     
     st.subheader("Risk Mandate")
@@ -245,7 +325,19 @@ with st.sidebar:
 # MAIN INTERFACE
 # ==========================================
 st.title("🏛️ Institutional Hedge Fund Controller")
-st.markdown(f"**Cluster Instance:** `ADK-V4-MAIN` | **Session:** `{st.session_state.get('thread_id', 'INACTIVE')}`")
+st.markdown(f"<div class='header-meta'>CLUSTER INSTANCE: <b>ADK-V4-MAIN</b> | SESSION_ID: <b>{st.session_state.get('thread_id', 'INACTIVE')}</b> | STATUS: <b>{'ONLINE' if st.session_state.get('running') else 'STANDBY'}</b></div>", unsafe_allow_html=True)
+
+# Global KPI Header Row
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+with kpi1:
+    st.metric("Total AUM Target", f"${capital:,.0f}")
+with kpi2:
+    st.metric("Active Assets", len([t for t in tickers_input.split(",") if t.strip()]))
+with kpi3:
+    st.metric("Risk Model", risk_tolerance)
+with kpi4:
+    st.metric("Strategy Horizon", horizon)
+st.markdown("<br>", unsafe_allow_html=True)
 
 if st.session_state.get("running"):
     st.markdown("### 📡 Live Session: Node Traversal")
@@ -265,6 +357,7 @@ if st.session_state.get("running"):
             asset_class=asset_class,
             risk_tolerance=risk_tolerance,
             time_horizon=horizon,
+            investor_type=investor_type,
             tickers=st.session_state.tickers,
         )
     ).model_dump()
@@ -352,6 +445,34 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
                 tooltip=["Asset", "Weight"]
             ).properties(height=300)
             st.altair_chart(chart, use_container_width=True)
+
+            # Check for Metrics Log (Added in ADK v4.0 enhancements)
+            metrics_log = state.get("metrics_log")
+            if metrics_log and "evaluation_score" in metrics_log:
+                st.markdown("---")
+                st.markdown("### Institutional Evaluation & Allocation")
+                
+                col_score, col_pie = st.columns([1, 2])
+                
+                with col_score:
+                    score = metrics_log["evaluation_score"]
+                    st.metric(
+                        "Quality Score", 
+                        f"{score}/100", 
+                        delta="High Quality" if score > 80 else "Moderate" if score > 50 else "High Risk",
+                        delta_color="normal" if score > 50 else "inverse"
+                    )
+                    
+                with col_pie:
+                    if "sector_allocation" in metrics_log:
+                        st.markdown("**Mutual Fund Sector Breakdown**")
+                        sector_df = pd.DataFrame([{"Sector": k, "Weight": v*100} for k, v in metrics_log["sector_allocation"].items()])
+                        pie_chart = alt.Chart(sector_df).mark_arc(innerRadius=50).encode(
+                            theta=alt.Theta(field="Weight", type="quantitative"),
+                            color=alt.Color(field="Sector", type="nominal", scale=alt.Scale(scheme="set3")),
+                            tooltip=["Sector", "Weight"]
+                        ).properties(height=250)
+                        st.altair_chart(pie_chart, use_container_width=True)
             
     with t2:
         bt = state.get("backtest_results")

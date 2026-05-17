@@ -26,6 +26,8 @@ from agents.fan_out.sentiment import (
 
 from agents.coder import coder_agent as coder_node
 from agents.execution import execution_agent as execution_node
+from agents.reporting import reporting_agent as reporting_node
+from agents.optimizer import optimizer_agent as optimizer_node
 
 # --- 1. Node Definitions (Remaining Mocks) ---
 
@@ -38,23 +40,6 @@ def alternative_node(state: ADKState) -> Dict[str, Any]:
 def macroeconomic_node(state: ADKState) -> Dict[str, Any]:
     print("   -> [Parallel] Macroeconomic parsing global yield curves.")
     return {"observations": {"macroeconomic": {"insight": "Fed dovish tilt"}}}
-
-
-def optimizer_node(state: ADKState) -> Dict[str, Any]:
-    print("-> Optimizer: Adjusting allocations to be more defensive.")
-    return {}  # In a real scenario, this would update state with specific guidance
-
-
-def reporting_node(state: ADKState) -> Dict[str, Any]:
-    print("-> Reporting: Updating Transaction Ledger and final summary.")
-    if state.approval_status == ApprovalStatus.REJECTED:
-        return {
-            "final_report": f"System Failure: Strategy rejected after {state.current_retry} retries. Rationale: {state.feedback_loop[-1] if state.feedback_loop else 'No feedback'}"
-        }
-    return {
-        "final_report": f"Success: Alpha strategy {state.draft_strategy.strategy_id} executed successfully."
-    }
-
 
 # --- 2. Conditional Edge Logic ---
 
