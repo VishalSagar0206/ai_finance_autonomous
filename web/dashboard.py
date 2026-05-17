@@ -1,3 +1,5 @@
+import sys
+import os
 import streamlit as st
 import uuid
 import pandas as pd
@@ -6,6 +8,9 @@ import altair as alt
 import time
 from datetime import datetime
 from streamlit_agraph import agraph, Node, Edge, Config
+
+# Ensure the root directory is in sys.path so 'core' can be found
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.graph import adk_app
 from core.state import ADKState, UserRequest, ApprovalStatus
