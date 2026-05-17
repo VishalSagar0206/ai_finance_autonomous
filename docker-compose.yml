@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. Core API Server (Decoupled Backend)
   adk-api:
