@@ -1,11 +1,10 @@
 # Use a stable Python 3.11 image
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # System-level dependencies for building certain Python packages (e.g., chromadb)
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    software-properties-common \
     git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,11 +33,8 @@ RUN uv pip install --system \
 # Copy the entire framework into the container
 COPY . .
 
-# Expose the Streamlit port
-EXPOSE 8501
+# Expose the API port
+EXPOSE 8000
 
-# Healthcheck to ensure the UI is running
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-
-# Run the dashboard as the entrypoint
-ENTRYPOINT ["streamlit", "run", "web/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run the API server as the entrypoint
+ENTRYPOINT ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]

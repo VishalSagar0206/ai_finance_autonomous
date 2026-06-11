@@ -1,34 +1,43 @@
 import uuid
-from adk_framework_v3.core.graph import adk_app
-from adk_framework_v3.core.state import ADKState, UserRequest
+from core.graph import adk_app
+from core.state import ADKState, UserRequest
 
-def run_framework_demo():
-    print("=== ADK Framework v3.0: Autonomous Agentic 'Brain' Demo ===")
-    
-    # 1. Initialize State with a User Request
+
+def run_framework_demo(auto_approve: bool = True):
+    print("=== ADK Framework v4.0: Autonomous Agentic Trading Demo ===")
+
     initial_state = ADKState(
         request=UserRequest(
             asset_class="Equities",
             risk_tolerance="Moderate",
             time_horizon="6-12 Months",
-            additional_constraints="Focus on Tech sector with low volatility."
+            additional_constraints="Focus on Tech sector with low volatility.",
+            tickers=["AAPL", "MSFT"],
         )
-    )
+    ).model_dump()
 
-    # 2. Execute the Graph
-    print(f"\nStarting Execution Loop...")
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-    
-    # We use stream to see the node transitions
+    print("\nStarting analysis loop...")
     for output in adk_app.stream(initial_state, config=config):
-        # output is a dict where keys are node names and values are their return dicts
-        for node_name, state_update in output.items():
+        for node_name in output:
             print(f"Finished Node: {node_name}")
 
+    snapshot = adk_app.get_state(config)
+    if "execution" in snapshot.next:
+        print("\nHITL checkpoint reached before execution.")
+        if auto_approve:
+            print("Auto-approving demo execution so every agent runs end-to-end...")
+            for output in adk_app.stream(None, config=config):
+                for node_name in output:
+                    print(f"Finished Node: {node_name}")
+        else:
+            print("Pass auto_approve=True or call adk_app.invoke(None, config=config) to resume.")
+
+    final_state = adk_app.get_state(config).values
     print("\n=== Execution Complete ===")
-    # The final state is what we'd want to inspect
-    # In a real scenario, we might pull it from a checkpointer or the last output
-    # For this mock, we just know it reached the end.
+    print(final_state.get("final_report") or "No final report generated.")
+    return final_state
+
 
 if __name__ == "__main__":
     run_framework_demo()

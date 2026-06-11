@@ -1,137 +1,270 @@
-from typing import Dict, Any
-from langgraph.graph import StateGraph, END
-from .state import ADKState, ApprovalStatus
+from __future__ import annotations
 
-from adk_framework_v3.agents.planner import planner_agent as planner_node
-from adk_framework_v3.agents.ensemble import ensemble_cio_agent as aggregator_generator_node
-from adk_framework_v3.agents.critic import multi_factor_critic_agent as critic_node
-from adk_framework_v3.agents.stress_tester import stress_tester_agent as stress_tester_node
-from adk_framework_v3.agents.meta_monitor import meta_reflective_agent as meta_reflective_node
-from adk_framework_v3.agents.fan_out.fundamental import fundamental_analyst_agent as fundamental_node
-from adk_framework_v3.agents.fan_out.quantitative import quantitative_analyst_agent as quantitative_node
-from adk_framework_v3.agents.fan_out.sentiment import sentiment_analyst_agent as sentiment_node
+from dataclasses import dataclass
+from typing import Dict, Any, Iterator, Optional, Tuple
+import uuid
 
-from adk_framework_v3.agents.coder import coder_agent as coder_node
-from adk_framework_v3.agents.execution import execution_agent as execution_node
+from core.state import (
+    ADKState,
+    UserRequest,
+    MarketContext,
+    AgentObservations,
+    PortfolioState,
+    DiscoveredSignals,
+    DraftStrategy,
+    ApprovalStatus,
+    merge_observations,
+)
 
-# --- 1. Node Definitions (Remaining Mocks) ---
+from agents.planner import planner_agent as planner_node
+from agents.ensemble import ensemble_cio_agent as aggregator_generator_node
+from agents.critic import multi_factor_critic_agent as critic_node
+from agents.stress_tester import stress_tester_agent as stress_tester_node
+from agents.meta_monitor import meta_reflective_agent as meta_reflective_node
+from agents.fan_out.fundamental import fundamental_analyst_agent as fundamental_node
+from agents.fan_out.quantitative import quantitative_analyst_agent as quantitative_node
+from agents.fan_out.sentiment import sentiment_analyst_agent as sentiment_node
+from agents.coder import coder_agent as coder_node
+from agents.execution import execution_agent as execution_node
+from agents.reporting import reporting_agent as reporting_node
+from agents.optimizer import optimizer_agent as optimizer_node
 
+
+# --- Mock nodes retained from the original graph ---
 def alternative_node(state: ADKState) -> Dict[str, Any]:
     print("   -> [Parallel] Alternative Data checking satellite/foot traffic.")
-    return {"observations": {"alternative": {"insight": "High retail traffic"}}}
+    return {"observations": {"alternative": {"insight": "High retail traffic", "status": "completed"}}}
+
 
 def macroeconomic_node(state: ADKState) -> Dict[str, Any]:
     print("   -> [Parallel] Macroeconomic parsing global yield curves.")
-    return {"observations": {"macroeconomic": {"insight": "Fed dovish tilt"}}}
+    return {"observations": {"macroeconomic": {"insight": "Fed dovish tilt", "status": "completed"}}}
 
-def optimizer_node(state: ADKState) -> Dict[str, Any]:
-    print("-> Optimizer: Adjusting allocations to be more defensive.")
-    return {} # In a real scenario, this would update state with specific guidance
 
-def reporting_node(state: ADKState) -> Dict[str, Any]:
-    print("-> Reporting: Updating Transaction Ledger and final summary.")
-    if state.approval_status == ApprovalStatus.REJECTED:
-        return {"final_report": f"System Failure: Strategy rejected after {state.current_retry} retries. Rationale: {state.feedback_loop[-1] if state.feedback_loop else 'No feedback'}"}
-    return {"final_report": f"Success: Alpha strategy {state.draft_strategy.strategy_id} executed successfully."}
-
-# --- 2. Conditional Edge Logic ---
-
+# --- Conditional routing ---
 def critic_routing(state: ADKState) -> str:
-    """Routes based on the Multi-Factor Critic's approval status."""
     if state.approval_status == ApprovalStatus.APPROVED:
         return "stress_tester"
-    elif state.current_retry >= state.max_retries:
+    if state.current_retry >= state.max_retries:
         print("   [Routing] MAX RETRIES EXCEEDED. Abandoning strategy.")
         return "reporting"
-    else:
-        return "optimizer"
+    return "optimizer"
+
 
 def coder_routing(state: ADKState) -> str:
-    """Self-Correction Routing: Retries if backtest failed. On success, goes to Critic."""
     results = state.backtest_results or {}
     if results.get("status") == "success":
         return "critic"
-    
     if state.backtest_attempts < state.max_backtest_retries:
-        print(f"   [Routing] Backtest failed. Retrying (Attempt {state.backtest_attempts}/{state.max_backtest_retries}).")
+        print(
+            f"   [Routing] Backtest failed. Retrying "
+            f"(Attempt {state.backtest_attempts}/{state.max_backtest_retries})."
+        )
         return "coder"
-    
     print("   [Routing] Backtest failed repeatedly. Routing to Reporting.")
     return "reporting"
 
-from langgraph.checkpoint.memory import MemorySaver
 
-# --- 3. Graph Construction ---
+@dataclass
+class StateSnapshot:
+    values: Dict[str, Any]
+    next: Tuple[str, ...] = ()
 
-def build_graph() -> StateGraph:
-    workflow = StateGraph(ADKState)
-    checkpointer = MemorySaver()
 
-    # ... (Add Nodes logic remains the same)
-    workflow.add_node("planner", planner_node)
-    workflow.add_node("fundamental", fundamental_node)
-    workflow.add_node("quantitative", quantitative_node)
-    workflow.add_node("alternative", alternative_node)
-    workflow.add_node("macroeconomic", macroeconomic_node)
-    workflow.add_node("sentiment", sentiment_node)
-    workflow.add_node("aggregator", aggregator_generator_node)
-    workflow.add_node("critic", critic_node)
-    workflow.add_node("stress_tester", stress_tester_node)
-    workflow.add_node("optimizer", optimizer_node)
-    workflow.add_node("meta_reflective", meta_reflective_node)
-    workflow.add_node("coder", coder_node)
-    workflow.add_node("execution", execution_node)
-    workflow.add_node("reporting", reporting_node)
+class LocalADKApp:
+    """Small graph runner compatible with the subset of LangGraph used here.
 
-    # Entry Point
-    workflow.set_entry_point("planner")
+    It keeps the project runnable in offline/demo environments where LangGraph,
+    PostgreSQL checkpointers, and cloud services are not installed.
+    """
 
-    # ... (Parallel fan-out/in logic remains the same)
-    parallel_nodes = ["fundamental", "quantitative", "alternative", "macroeconomic", "sentiment"]
-    for node in parallel_nodes:
-        workflow.add_edge("planner", node)
+    def __init__(self) -> None:
+        self._threads: Dict[str, tuple[ADKState, Tuple[str, ...]]] = {}
 
-    for node in parallel_nodes:
-        workflow.add_edge(node, "aggregator")
+    def _thread_id(self, config: Optional[Dict[str, Any]]) -> str:
+        configurable = (config or {}).get("configurable", {})
+        return str(configurable.get("thread_id") or "default")
 
-    # Generator to Backtest (Coder) Loop
-    workflow.add_edge("aggregator", "coder")
+    @staticmethod
+    def _coerce_state(value: Any) -> ADKState:
+        if isinstance(value, ADKState):
+            return value.model_copy(deep=True)
+        if isinstance(value, dict):
+            return ADKState.model_validate(value)
+        raise TypeError("Initial graph input must be an ADKState or ADKState-compatible dict.")
 
-    # Post-Coder Routing (Self-Correction or Proceed to Critic)
-    workflow.add_conditional_edges(
-        "coder",
-        coder_routing,
-        {
-            "critic": "critic", # If code executed successfully
-            "coder": "coder",   # If code failed and retrying
-            "reporting": "reporting" # If code failed max retries
-        }
-    )
+    @staticmethod
+    def _values(state: ADKState) -> Dict[str, Any]:
+        return {name: getattr(state, name) for name in ADKState.model_fields}
 
-    # Critic Routing (The Core Loop)
-    # The Critic now evaluates the Strategy AND the Backtest Results
-    workflow.add_conditional_edges(
-        "critic",
-        critic_routing,
-        {
-            "stress_tester": "stress_tester", # If Approved
-            "optimizer": "optimizer",        # If Rejected
-            "reporting": "reporting"         # If Max Retries Exceeded
-        }
-    )
+    def _save(self, thread_id: str, state: ADKState, next_nodes: Tuple[str, ...] = ()) -> None:
+        self._threads[thread_id] = (state.model_copy(deep=True), tuple(next_nodes))
 
-    # Optimizer goes to Meta-Reflective for prompt tuning
-    workflow.add_edge("optimizer", "meta_reflective")
+    def get_state(self, config: Optional[Dict[str, Any]] = None) -> StateSnapshot:
+        thread_id = self._thread_id(config)
+        state, next_nodes = self._threads.get(
+            thread_id,
+            (ADKState(request=UserRequest(asset_class="Equities", risk_tolerance="Moderate", time_horizon="1y")), ()),
+        )
+        return StateSnapshot(values=self._values(state), next=next_nodes)
 
-    # Meta-Reflective returns to Aggregator
-    workflow.add_edge("meta_reflective", "aggregator")
+    def _apply_update(self, state: ADKState, update: Dict[str, Any]) -> None:
+        for key, value in (update or {}).items():
+            if key == "request":
+                state.request = value if isinstance(value, UserRequest) else UserRequest.model_validate(value)
+            elif key == "context":
+                state.context = value if isinstance(value, MarketContext) else MarketContext.model_validate(value)
+            elif key == "observations":
+                state.observations = merge_observations(state.observations, value)
+            elif key == "signals":
+                state.signals = value if isinstance(value, DiscoveredSignals) else DiscoveredSignals.model_validate(value)
+            elif key == "portfolio":
+                state.portfolio = value if isinstance(value, PortfolioState) else PortfolioState.model_validate(value)
+            elif key == "draft_strategy":
+                if value is None:
+                    state.draft_strategy = None
+                else:
+                    state.draft_strategy = value if isinstance(value, DraftStrategy) else DraftStrategy.model_validate(value)
+            elif key == "approval_status":
+                state.approval_status = value if isinstance(value, ApprovalStatus) else ApprovalStatus(value)
+            elif key == "feedback_loop":
+                if isinstance(value, list):
+                    state.feedback_loop = list(state.feedback_loop or []) + value
+                else:
+                    state.feedback_loop = list(state.feedback_loop or []) + [str(value)]
+            elif key == "execution_logs":
+                state.execution_logs = list(value or [])
+            elif key == "metrics_log":
+                state.metrics_log = dict(value or {})
+            elif key == "ensemble_sub_strategies":
+                converted = {}
+                for name, strategy in (value or {}).items():
+                    converted[name] = strategy if isinstance(strategy, DraftStrategy) else DraftStrategy.model_validate(strategy)
+                state.ensemble_sub_strategies = converted
+            elif key == "system_instructions":
+                merged = dict(state.system_instructions or {})
+                merged.update(value or {})
+                state.system_instructions = merged
+            elif hasattr(state, key):
+                setattr(state, key, value)
 
-    # Stress Tester goes to Execution
-    workflow.add_edge("stress_tester", "execution")
-    workflow.add_edge("execution", "reporting")
-    workflow.add_edge("reporting", END)
+    def _run_node(self, state: ADKState, name: str, func) -> Dict[str, Any]:
+        update = func(state)
+        self._apply_update(state, update)
+        return update
 
-    return workflow.compile(checkpointer=checkpointer, interrupt_before=["execution"])
+    def _run_analysis_until_interrupt_or_end(
+        self, state: ADKState, start_node: str
+    ) -> Iterator[Dict[str, Dict[str, Any]]]:
+        node = start_node
+        while True:
+            if node == "planner":
+                yield {"planner": self._run_node(state, "planner", planner_node)}
+                for name, func in (
+                    ("fundamental", fundamental_node),
+                    ("quantitative", quantitative_node),
+                    ("alternative", alternative_node),
+                    ("macroeconomic", macroeconomic_node),
+                    ("sentiment", sentiment_node),
+                ):
+                    yield {name: self._run_node(state, name, func)}
+                node = "aggregator"
+                continue
 
-# Compile the app to be used elsewhere
-adk_app = build_graph()
+            if node == "aggregator":
+                yield {"aggregator": self._run_node(state, "aggregator", aggregator_generator_node)}
+                node = "coder"
+                continue
+
+            if node == "coder":
+                yield {"coder": self._run_node(state, "coder", coder_node)}
+                route = coder_routing(state)
+                if route == "coder":
+                    node = "coder"
+                    continue
+                if route == "reporting":
+                    if state.approval_status != ApprovalStatus.APPROVED:
+                        state.approval_status = ApprovalStatus.REJECTED
+                        if not state.feedback_loop:
+                            state.feedback_loop = ["Backtest failed repeatedly."]
+                    node = "reporting"
+                    continue
+                node = "critic"
+                continue
+
+            if node == "critic":
+                yield {"critic": self._run_node(state, "critic", critic_node)}
+                route = critic_routing(state)
+                if route == "stress_tester":
+                    node = "stress_tester"
+                elif route == "optimizer":
+                    node = "optimizer"
+                else:
+                    node = "reporting"
+                continue
+
+            if node == "optimizer":
+                yield {"optimizer": self._run_node(state, "optimizer", optimizer_node)}
+                node = "meta_reflective"
+                continue
+
+            if node == "meta_reflective":
+                yield {"meta_reflective": self._run_node(state, "meta_reflective", meta_reflective_node)}
+                node = "aggregator"
+                continue
+
+            if node == "stress_tester":
+                yield {"stress_tester": self._run_node(state, "stress_tester", stress_tester_node)}
+                # Mimic interrupt_before=["execution"]
+                return
+
+            if node == "reporting":
+                yield {"reporting": self._run_node(state, "reporting", reporting_node)}
+                return
+
+            raise RuntimeError(f"Unknown graph node: {node}")
+
+    def _run_execution_to_end(self, state: ADKState) -> Iterator[Dict[str, Dict[str, Any]]]:
+        yield {"execution": self._run_node(state, "execution", execution_node)}
+        yield {"reporting": self._run_node(state, "reporting", reporting_node)}
+
+    def stream(self, input_state: Any, config: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Dict[str, Any]]]:
+        thread_id = self._thread_id(config)
+        if input_state is None:
+            if thread_id not in self._threads:
+                raise RuntimeError("Cannot resume graph; no checkpoint exists for this thread_id.")
+            state, next_nodes = self._threads[thread_id]
+            if not next_nodes:
+                return
+            start_node = next_nodes[0]
+        else:
+            state = self._coerce_state(input_state)
+            start_node = "planner"
+
+        if start_node == "execution":
+            for event in self._run_execution_to_end(state):
+                yield event
+            self._save(thread_id, state, ())
+            return
+
+        for event in self._run_analysis_until_interrupt_or_end(state, start_node):
+            yield event
+
+        # Interrupt if the analysis reached stress_tester and approval is pending execution.
+        if state.approval_status == ApprovalStatus.APPROVED and state.stress_test_report and not state.final_report:
+            self._save(thread_id, state, ("execution",))
+        else:
+            self._save(thread_id, state, ())
+
+    def invoke(self, input_state: Any, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        for _ in self.stream(input_state, config=config):
+            pass
+        return self.get_state(config).values
+
+    async def astream(self, input_state: Any, config: Optional[Dict[str, Any]] = None):
+        for event in self.stream(input_state, config=config):
+            yield event
+
+
+# Compiled application object used by CLI, API, UI, and tests.
+adk_app = LocalADKApp()

@@ -1,0 +1,35 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test Results</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    pre { background:#f4f4f4; padding:10px; border-radius:6px; overflow:auto; max-height:70vh; }
+    .fail { color: #b00020; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Pytest Results</h1>
+  <p>Summary: 25 tests run. See failures and full output below.</p>
+  <p><a href="./test_output.txt">Download full raw output (web/test_output.txt)</a></p>
+  <h2 class="fail">Failing tests (excerpt)</h2>
+  <pre>
+- tests/test_comprehensive.py::test_scenario_1_multi_ticker_success
+- tests/test_comprehensive.py::test_scenario_2_mixed_valid_invalid_tickers
+- tests/test_comprehensive.py::test_scenario_3_terminal_failure_max_retries
+- tests/test_comprehensive.py::test_scenario_6_empty_ticker_list
+- tests/test_edge_cases.py::test_edge_case_invalid_ticker
+- tests/test_edge_cases.py::test_edge_case_max_retries_reached
+- tests/test_graph_flow.py::test_graph_execution_end_to_end
+- tests/test_industry_edge_cases.py::test_industry_edge_case_self_correction
+- tests/test_v4_complete.py::test_v4_ensemble_cio_logic
+  </pre>
+  <h3>Full Output (tail)</h3>
+  <pre>
+(See full output file for complete trace)
+  </pre>
+  <hr/>
+  <p><strong>Generated:</strong> Latest pytest run saved to <em>web/test_output.txt</em>.</p>
+  <p><strong>Next:</strong> I can start fixing failures, beginning with `test_scenario_1_multi_ticker_success`.</p>
+</body>
+</html>

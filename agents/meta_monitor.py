@@ -1,40 +1,54 @@
+from __future__ import annotations
+
 from typing import Dict, Any
-from adk_framework_v3.core.state import ADKState
-from adk_framework_v3.core.llm_provider import llm_provider
 import logging
-import os
+
+from pydantic import BaseModel, Field
+
+from core.config import config
+from core.llm_provider import llm_provider
+from core.state import ADKState
 
 logger = logging.getLogger(__name__)
 
+
+class MetaInstructions(BaseModel):
+    instructions: Dict[str, str] = Field(description="Map of agent name to new instructions.")
+
+
 def meta_reflective_agent(state: ADKState) -> Dict[str, Any]:
-    """
-    Agent that reflects on the current session's failures and successes.
-    Updates 'system_instructions' to improve future agent performance.
-    """
+    """Reflect on failures and update system instructions."""
     print("-> Meta-Reflective Agent: Optimizing system prompts.")
-    
-    if not os.environ.get("GOOGLE_API_KEY") or not state.feedback_loop:
+
+    if not state.feedback_loop:
         return {}
 
+    if not config.has_live_llm():
+        last_feedback = state.feedback_loop[-1]
+        return {
+            "system_instructions": {
+                **(state.system_instructions or {}),
+                "planner": "Prefer lower-risk universes after critic rejection.",
+                "aggregator": f"Address latest critic feedback: {last_feedback}",
+                "coder": "Preserve deterministic backtest output and expose error logs.",
+            }
+        }
+
     prompt = (
-        "You are a Meta-Optimization Agent. Review the current session's feedback loop and execution logs. "
-        "Generate a set of improved 'Meta-Instructions' for the Planner and Aggregator agents to prevent "
-        "these issues in the next iteration."
+        "Review the current session's feedback loop and execution logs. Generate improved "
+        "Meta-Instructions for Planner and Aggregator agents to prevent these issues next iteration."
     )
-    
     try:
-        # We use a simple JSON output here for instructions
         llm_out = llm_provider.run_structured_chain(
             prompt_text=prompt,
             input_data={
                 "feedback_loop": state.feedback_loop,
                 "execution_logs": state.execution_logs,
-                "current_instructions": state.system_instructions
+                "current_instructions": state.system_instructions,
             },
-            output_schema=Dict[str, str] # Schema for instruction map
+            output_schema=MetaInstructions,
         )
-        
-        return {"system_instructions": llm_out}
-    except Exception as e:
-        logger.error(f"Meta-Reflector: Reflection failed. Error: {str(e)}")
+        return {"system_instructions": llm_out.instructions}
+    except Exception as exc:
+        logger.error("Meta-Reflector: reflection failed. Error: %s", exc)
         return {}

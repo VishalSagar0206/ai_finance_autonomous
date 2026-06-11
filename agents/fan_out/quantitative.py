@@ -1,11 +1,12 @@
 from typing import Dict, Any
-from adk_framework_v3.tools.market_data import market_data_client
-from adk_framework_v3.core.state import ADKState
+from tools.market_data import market_data_client, MarketDataClient
+from core.state import ADKState
 import logging
 
 logger = logging.getLogger(__name__)
 
-from adk_framework_v3.tools.risk_engine import similarity_engine
+from tools.risk_engine import similarity_engine
+
 
 def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
     """
@@ -25,33 +26,44 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
 
         if stats.get("status") != "success":
             logger.warning(f"Quant Analyst: Data fetch failed for {formatted_ticker}.")
-            all_results[formatted_ticker] = {"error": stats.get("error"), "status": "no_data"}
+            all_results[formatted_ticker] = {
+                "error": stats.get("error"),
+                "status": "failed",
+            }
             continue
 
         # 3. Simulated "Analysis" Logic
         momentum = stats.get("momentum_pct", 0)
+        investor_type = state.request.investor_type
 
-        insight = f"Regime Match: {regime['matched_regime']}. "
-        if momentum > 0.05:
-            insight += "Strong positive momentum."
-        elif momentum < -0.05:
-            insight += "Significant negative momentum."
+        insight = f"[{investor_type.value}] Regime Match: {regime['matched_regime']}. "
+        
+        if investor_type.value == "INTRADAY":
+            volatility = stats.get("volatility_std", 0)
+            if volatility and volatility > 0.02:
+                insight += "High intraday volatility provides trading opportunities."
+            else:
+                insight += "Low volatility may limit intraday gains."
         else:
-            insight += "Neutral momentum."
+            if momentum > 0.05:
+                insight += "Strong positive momentum."
+            elif momentum < -0.05:
+                insight += "Significant negative momentum."
+            else:
+                insight += "Neutral momentum."
 
         all_results[formatted_ticker] = {
             "metrics": stats,
             "regime": regime,
             "insight": insight,
-            "status": "completed"
+            "status": "completed",
         }
-
 
     return {
         "observations": {
             "quantitative": {
                 "results": all_results,
-                "status": "completed" if all_results else "no_data"
+                "status": "completed" if all_results else "no_data",
             }
         }
     }

@@ -9,10 +9,16 @@ class ApprovalStatus(str, Enum):
     REJECTED = "REJECTED"
     PENDING = "PENDING"
 
+class InvestorType(str, Enum):
+    INTRADAY = "INTRADAY"
+    SHORT_TERM = "SHORT_TERM"
+    LONG_TERM = "LONG_TERM"
+
 class UserRequest(BaseModel):
     asset_class: str
     risk_tolerance: str
     time_horizon: str
+    investor_type: InvestorType = InvestorType.LONG_TERM
     tickers: List[str] = Field(default_factory=lambda: ["AAPL"])
     additional_constraints: Optional[str] = None
 
