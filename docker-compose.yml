@@ -9,9 +9,10 @@ services:
       - "8000:8000"
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - ALPACA_API_KEY=${ALPACA_API_KEY:-MOCK_KEY}
-      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-MOCK_SECRET}
-      - DB_URL=postgresql://adk_user:adk_pass@postgres:5432/adk_state
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY}
+      - ALPACA_BASE_URL=${ALPACA_BASE_URL}
+      - DB_URL=${DB_URL}
     depends_on:
       postgres:
         condition: service_healthy
