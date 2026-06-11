@@ -10,7 +10,7 @@ from datetime import datetime
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # Ensure the root directory is in sys.path so 'core' can be found
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.graph import adk_app
 from core.state import ADKState, UserRequest, ApprovalStatus
@@ -24,10 +24,11 @@ st.set_page_config(
     page_title="ADK v4.0 | Institutional Alpha",
     page_icon="💎",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-st.markdown("""
+st.markdown(
+    """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
     
@@ -165,18 +166,28 @@ st.markdown("""
         padding-bottom: 1rem;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 import graphviz
+
 
 # ==========================================
 # HELPER: LIVE GRAPHVIZ (FOR LOOP STABILITY)
 # ==========================================
 def render_live_tree(completed_nodes):
     dot = graphviz.Digraph()
-    dot.attr(bgcolor='transparent')
-    dot.attr('node', fontcolor='#f8fafc', fontname='Inter', fontsize='12', shape='box', style='rounded,filled')
-    dot.attr('edge', color='#475569', arrowhead='vee')
+    dot.attr(bgcolor="transparent")
+    dot.attr(
+        "node",
+        fontcolor="#f8fafc",
+        fontname="Inter",
+        fontsize="12",
+        shape="box",
+        style="rounded,filled",
+    )
+    dot.attr("edge", color="#475569", arrowhead="vee")
 
     # Define Nodes
     nodes = {
@@ -189,10 +200,11 @@ def render_live_tree(completed_nodes):
         "aggregator": "Strategy CIO",
         "coder": "Quant Coder",
         "critic": "Risk Critic",
+        "stress_tester": "Stress Test",
         "optimizer": "Optimizer",
         "meta_reflective": "Meta-Reflector",
         "execution": "SOR Execution",
-        "reporting": "Final Report"
+        "reporting": "Final Report",
     }
 
     for node, label in nodes.items():
@@ -206,13 +218,20 @@ def render_live_tree(completed_nodes):
     dot.edge("planner", "alternative")
     dot.edge("planner", "macroeconomic")
     dot.edge("planner", "sentiment")
-    
-    for n in ["fundamental", "quantitative", "alternative", "macroeconomic", "sentiment"]:
+
+    for n in [
+        "fundamental",
+        "quantitative",
+        "alternative",
+        "macroeconomic",
+        "sentiment",
+    ]:
         dot.edge(n, "aggregator")
-        
+
     dot.edge("aggregator", "coder")
     dot.edge("coder", "critic")
-    dot.edge("critic", "execution")
+    dot.edge("critic", "stress_tester")
+    dot.edge("stress_tester", "execution")
     dot.edge("critic", "optimizer")
     dot.edge("optimizer", "meta_reflective")
     dot.edge("meta_reflective", "aggregator")
@@ -220,13 +239,14 @@ def render_live_tree(completed_nodes):
 
     st.graphviz_chart(dot, use_container_width=True)
 
+
 # ==========================================
 # HELPER: ENHANCED GRAPH VISUALIZATION (FINAL)
 # ==========================================
 def render_agent_graph(completed_nodes):
     nodes = []
     edges = []
-    
+
     # Industry-level Node Definitions without Icons
     graph_layout = {
         "planner": {"label": "Master Planner", "level": 0},
@@ -238,57 +258,133 @@ def render_agent_graph(completed_nodes):
         "aggregator": {"label": "Strategy CIO", "level": 2},
         "coder": {"label": "Quant Coder", "level": 3},
         "critic": {"label": "Risk Critic", "level": 4},
+        "stress_tester": {"label": "Stress Test", "level": 5},
         "optimizer": {"label": "Optimizer", "level": 5},
         "meta_reflective": {"label": "Meta-Reflector", "level": 6},
-        "execution": {"label": "SOR Execution", "level": 7},
-        "reporting": {"label": "Final Report", "level": 8}
+        "execution": {"label": "SOR Execution", "level": 6},
+        "reporting": {"label": "Final Report", "level": 7},
     }
-    
+
     for node_id, info in graph_layout.items():
         is_done = node_id in completed_nodes
         # Glowing effect for completed nodes
         color = "#10b981" if is_done else "#334155"
         size = 35 if is_done else 25
-        
-        nodes.append(Node(
-            id=node_id, 
-            label=info["label"], 
-            size=size,
-            shape="dot",
-            color=color,
-            font={"color": "#f8fafc", "size": 16, "face": "Inter"}
-        ))
-        
+
+        nodes.append(
+            Node(
+                id=node_id,
+                label=info["label"],
+                size=size,
+                shape="dot",
+                color=color,
+                font={"color": "#f8fafc", "size": 16, "face": "Inter"},
+            )
+        )
+
     # Visual Edge Connections
     edge_links = [
-        ("planner", "fundamental"), ("planner", "quantitative"), ("planner", "alternative"), 
-        ("planner", "macroeconomic"), ("planner", "sentiment"),
-        ("fundamental", "aggregator"), ("quantitative", "aggregator"), ("alternative", "aggregator"),
-        ("macroeconomic", "aggregator"), ("sentiment", "aggregator"),
-        ("aggregator", "coder"), ("coder", "critic"),
-        ("critic", "execution"), ("critic", "optimizer"), ("optimizer", "meta_reflective"),
-        ("meta_reflective", "aggregator"), ("execution", "reporting")
+        ("planner", "fundamental"),
+        ("planner", "quantitative"),
+        ("planner", "alternative"),
+        ("planner", "macroeconomic"),
+        ("planner", "sentiment"),
+        ("fundamental", "aggregator"),
+        ("quantitative", "aggregator"),
+        ("alternative", "aggregator"),
+        ("macroeconomic", "aggregator"),
+        ("sentiment", "aggregator"),
+        ("aggregator", "coder"),
+        ("coder", "critic"),
+        ("critic", "stress_tester"),
+        ("stress_tester", "execution"),
+        ("critic", "optimizer"),
+        ("optimizer", "meta_reflective"),
+        ("meta_reflective", "aggregator"),
+        ("execution", "reporting"),
     ]
-    
+
     for source, target in edge_links:
-        edge_color = "#10b981" if (source in completed_nodes and target in completed_nodes) else "#475569"
+        edge_color = (
+            "#10b981"
+            if (source in completed_nodes and target in completed_nodes)
+            else "#475569"
+        )
         width = 3 if (source in completed_nodes and target in completed_nodes) else 1
         edges.append(Edge(source=source, target=target, color=edge_color, width=width))
-        
+
     config = Config(
-        width=1000, 
-        height=600, 
-        directed=True, 
-        physics=True, # Enable physics for organic feel
+        width=1000,
+        height=600,
+        directed=True,
+        physics=True,  # Enable physics for organic feel
         hierarchical=True,
         direction="UD",
         sortMethod="directed",
         nodeHighlightBehavior=True,
         highlightColor="#38bdf8",
-        shakeBeforeClick=True
+        shakeBeforeClick=True,
     )
-    
+
     return agraph(nodes=nodes, edges=edges, config=config)
+
+
+def _field(value, name, default=None):
+    """Read a field from either a dict or a Pydantic model."""
+    if value is None:
+        return default
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def infer_completed_nodes(state):
+    """Infer completed graph nodes from the saved ADK state.
+
+    The Streamlit graph is a visualization, while the backend state is the source
+    of truth. This keeps the UI aligned after the human approval/resume step.
+    """
+    completed = set()
+
+    if state.get("request") is not None:
+        completed.add("planner")
+
+    observations = state.get("observations")
+    for node_name in [
+        "fundamental",
+        "quantitative",
+        "alternative",
+        "macroeconomic",
+        "sentiment",
+    ]:
+        if _field(observations, node_name):
+            completed.add(node_name)
+
+    if state.get("draft_strategy") is not None:
+        completed.add("aggregator")
+
+    if state.get("backtest_results") is not None:
+        completed.add("coder")
+
+    approval_status = state.get("approval_status")
+    if approval_status in (ApprovalStatus.APPROVED, ApprovalStatus.REJECTED) or state.get("feedback_loop"):
+        completed.add("critic")
+
+    # Optimizer and Meta-Reflector are conditional: they only run after critic rejections.
+    if state.get("current_retry", 0) > 0:
+        completed.update({"optimizer", "meta_reflective"})
+
+    if state.get("stress_test_report"):
+        completed.add("stress_tester")
+
+    if state.get("execution_logs"):
+        completed.add("execution")
+
+    if state.get("final_report"):
+        completed.add("reporting")
+
+    return completed
+
 
 # ==========================================
 # SIDEBAR
@@ -296,32 +392,42 @@ def render_agent_graph(completed_nodes):
 with st.sidebar:
     st.title("🏦 ADK COMMAND")
     st.markdown("---")
-    
+
     st.subheader("Global Strategy")
     asset_class = st.selectbox("Asset Class", ["Equities", "Forex", "Crypto"])
-    investor_type_ui = st.selectbox("Investor Profile", ["Long Term", "Short Term", "Intraday"])
-    
+    investor_type_ui = st.selectbox(
+        "Investor Profile", ["Long Term", "Short Term", "Intraday"]
+    )
+
     # Map UI selection to Enum values expected by the backend
     type_map = {
         "Long Term": "LONG_TERM",
         "Short Term": "SHORT_TERM",
-        "Intraday": "INTRADAY"
+        "Intraday": "INTRADAY",
     }
     investor_type = type_map[investor_type_ui]
 
-    tickers_input = st.text_area("Investment Universe", value="RELIANCE, AAPL, GOOGL, NVDA", height=100)
-    
+    tickers_input = st.text_area(
+        "Investment Universe", value="RELIANCE, AAPL, GOOGL, NVDA", height=100
+    )
+
     st.subheader("Risk Mandate")
-    risk_tolerance = st.select_slider("Tolerance", options=["Conservative", "Moderate", "Aggressive", "Hyper-Alpha"])
+    risk_tolerance = st.select_slider(
+        "Tolerance", options=["Conservative", "Moderate", "Aggressive", "Hyper-Alpha"]
+    )
     horizon = st.selectbox("Horizon", ["1M", "6M", "1Y", "3Y"], index=2)
-    
+
     st.subheader("Capital Management")
     capital = st.number_input("Starting AUM ($)", min_value=100000, value=1000000)
-    
+
     st.markdown("---")
-    if st.button("🚀 INITIATE NEURAL ORCHESTRATION", type="primary", use_container_width=True):
+    if st.button(
+        "🚀 INITIATE NEURAL ORCHESTRATION", type="primary", use_container_width=True
+    ):
         st.session_state.thread_id = str(uuid.uuid4())
-        st.session_state.tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
+        st.session_state.tickers = [
+            t.strip().upper() for t in tickers_input.split(",") if t.strip()
+        ]
         st.session_state.running = True
         st.session_state.finished = False
         st.session_state.hitl_ready = False
@@ -330,7 +436,10 @@ with st.sidebar:
 # MAIN INTERFACE
 # ==========================================
 st.title("🏛️ Institutional Hedge Fund Controller")
-st.markdown(f"<div class='header-meta'>CLUSTER INSTANCE: <b>ADK-V4-MAIN</b> | SESSION_ID: <b>{st.session_state.get('thread_id', 'INACTIVE')}</b> | STATUS: <b>{'ONLINE' if st.session_state.get('running') else 'STANDBY'}</b></div>", unsafe_allow_html=True)
+st.markdown(
+    f"<div class='header-meta'>CLUSTER INSTANCE: <b>ADK-V4-MAIN</b> | SESSION_ID: <b>{st.session_state.get('thread_id', 'INACTIVE')}</b> | STATUS: <b>{'ONLINE' if st.session_state.get('running') else 'STANDBY'}</b></div>",
+    unsafe_allow_html=True,
+)
 
 # Global KPI Header Row
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -346,16 +455,16 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 if st.session_state.get("running"):
     st.markdown("### 📡 Live Session: Node Traversal")
-    
+
     col_graph, col_logs = st.columns([3, 1])
-    
+
     with col_graph:
         graph_placeholder = st.empty()
-        
+
     with col_logs:
         st.markdown("#### Execution Stream")
         log_terminal = st.empty()
-    
+
     thread_config = {"configurable": {"thread_id": st.session_state.thread_id}}
     initial_state = ADKState(
         request=UserRequest(
@@ -369,7 +478,7 @@ if st.session_state.get("running"):
 
     events_log = []
     completed_nodes = set()
-    
+
     try:
         # Use status for better UX
         with st.status("Initializing High-Frequency Graph...", expanded=True) as status:
@@ -382,16 +491,19 @@ if st.session_state.get("running"):
                     completed_nodes.add(node_name)
                     ts = datetime.now().strftime("%H:%M:%S")
                     events_log.append(f"[{ts}] NODE_COMPLETE: {node_name.upper()}")
-                    
+
                     # Update Logs
-                    log_terminal.markdown(f"<div class='terminal-log'>{'<br>'.join(events_log[-20:])}</div>", unsafe_allow_html=True)
-                    
+                    log_terminal.markdown(
+                        f"<div class='terminal-log'>{'<br>'.join(events_log[-20:])}</div>",
+                        unsafe_allow_html=True,
+                    )
+
                     # Update Live Tree (Colored)
                     with graph_placeholder.container():
                         render_live_tree(completed_nodes)
-                    
+
                     status.update(label=f"Active Agent: {node_name.upper()}")
-                    
+
                     state_snapshot = adk_app.get_state(thread_config)
                     if "execution" in state_snapshot.next:
                         st.session_state.hitl_ready = True
@@ -410,45 +522,94 @@ if st.session_state.get("running"):
 # POST-ORCHESTRATION ANALYTICS
 # ==========================================
 if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
-    
+
     thread_config = {"configurable": {"thread_id": st.session_state.thread_id}}
     state = adk_app.get_state(thread_config).values
     strategy = state.get("draft_strategy")
 
-    if st.session_state.get("hitl_ready"):
-        st.success("✅ **Neural Strategy Approved by Critic.** Awaiting Institutional Execution.")
-    else:
-        st.error("⚠️ **Risk Boundaries Violated.** Strategy rejected after optimization loops.")
+    def execute_pending_orders():
+        with st.spinner("Routing via SOR Engine..."):
+            adk_app.invoke(None, config=thread_config)
+            st.session_state.hitl_ready = False
+            st.session_state.finished = True
+            st.balloons()
+            st.rerun()
 
-    t1, t2, t3, t4, t5 = st.tabs(["Overview", "Backtest (PyTorch)", "Stress Test", "Audit Trail", "Alpha Code"])
+    final_report = state.get("final_report")
+    is_approved = state.get("approval_status") == ApprovalStatus.APPROVED
+
+    if final_report:
+        st.success("✅ **Full Workflow Complete.** SOR Execution and Final Report finished successfully.")
+    elif st.session_state.get("hitl_ready") or is_approved:
+        st.success(
+            "✅ **Neural Strategy Approved by Critic.** Ready for institutional execution."
+        )
+        st.info(
+            "The graph is paused at the human approval checkpoint. Click the execution button below to run SOR Execution and Final Report."
+        )
+        if st.button(
+            "🚨 EXECUTE INSTITUTIONAL ORDERS",
+            type="primary",
+            use_container_width=True,
+            key="execute_orders_top",
+        ):
+            execute_pending_orders()
+    else:
+        feedback = state.get("feedback_loop") or []
+        last_feedback = feedback[-1] if feedback else "No detailed rejection reason recorded."
+        st.error(
+            "⚠️ **Risk Boundaries Violated.** Strategy rejected after optimization loops.\n\n"
+            f"Reason: {last_feedback}"
+        )
+
+    t1, t2, t3, t4, t5 = st.tabs(
+        ["Overview", "Backtest (PyTorch)", "Stress Test", "Audit Trail", "Alpha Code"]
+    )
 
     with t1:
         st.markdown("### Orchestration DAG (Completed)")
-        # Determine completed nodes for visualization
-        final_nodes = {"planner", "fundamental", "quantitative", "alternative", "macroeconomic", "sentiment", "aggregator", "coder", "critic"}
-        if state.get("approval_status") == ApprovalStatus.APPROVED:
-            final_nodes.add("stress_tester")
+        # Determine completed nodes for visualization from actual backend state.
+        final_nodes = infer_completed_nodes(state)
         render_agent_graph(final_nodes)
-        
+
         if strategy:
             st.markdown("---")
             st.markdown("### Strategic Rationale")
             st.info(strategy.rationale)
-            
+
             c1, c2, c3 = st.columns(3)
-            c1.markdown(f"<div class='metric-card'><h3>ID</h3><p>{strategy.strategy_id}</p></div>", unsafe_allow_html=True)
-            c2.markdown(f"<div class='metric-card'><h3>Leverage</h3><p>1.0x</p></div>", unsafe_allow_html=True)
-            c3.markdown(f"<div class='metric-card'><h3>Engine</h3><p>ADK-V4.0</p></div>", unsafe_allow_html=True)
-            
+            c1.markdown(
+                f"<div class='metric-card'><h3>ID</h3><p>{strategy.strategy_id}</p></div>",
+                unsafe_allow_html=True,
+            )
+            c2.markdown(
+                f"<div class='metric-card'><h3>Leverage</h3><p>1.0x</p></div>",
+                unsafe_allow_html=True,
+            )
+            c3.markdown(
+                f"<div class='metric-card'><h3>Engine</h3><p>ADK-V4.0</p></div>",
+                unsafe_allow_html=True,
+            )
+
             # Allocation Chart
             st.markdown("#### Portfolio Composition")
-            df = pd.DataFrame([{"Asset": k, "Weight": v*100} for k, v in strategy.target_allocations.items()])
-            chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=10, cornerRadiusTopRight=10).encode(
-                x=alt.X("Asset:N", sort='-y'),
-                y="Weight:Q",
-                color=alt.Color("Asset:N", scale=alt.Scale(scheme="category20b")),
-                tooltip=["Asset", "Weight"]
-            ).properties(height=300)
+            df = pd.DataFrame(
+                [
+                    {"Asset": k, "Weight": v * 100}
+                    for k, v in strategy.target_allocations.items()
+                ]
+            )
+            chart = (
+                alt.Chart(df)
+                .mark_bar(cornerRadiusTopLeft=10, cornerRadiusTopRight=10)
+                .encode(
+                    x=alt.X("Asset:N", sort="-y"),
+                    y="Weight:Q",
+                    color=alt.Color("Asset:N", scale=alt.Scale(scheme="category20b")),
+                    tooltip=["Asset", "Weight"],
+                )
+                .properties(height=300)
+            )
             st.altair_chart(chart, use_container_width=True)
 
             # Check for Metrics Log (Added in ADK v4.0 enhancements)
@@ -456,90 +617,150 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
             if metrics_log and "evaluation_score" in metrics_log:
                 st.markdown("---")
                 st.markdown("### Institutional Evaluation & Allocation")
-                
+
                 col_score, col_pie = st.columns([1, 2])
-                
+
                 with col_score:
                     score = metrics_log["evaluation_score"]
                     st.metric(
-                        "Quality Score", 
-                        f"{score}/100", 
-                        delta="High Quality" if score > 80 else "Moderate" if score > 50 else "High Risk",
-                        delta_color="normal" if score > 50 else "inverse"
+                        "Quality Score",
+                        f"{score}/100",
+                        delta=(
+                            "High Quality"
+                            if score > 80
+                            else "Moderate" if score > 50 else "High Risk"
+                        ),
+                        delta_color="normal" if score > 50 else "inverse",
                     )
-                    
+
                 with col_pie:
                     if "sector_allocation" in metrics_log:
                         st.markdown("**Mutual Fund Sector Breakdown**")
-                        sector_df = pd.DataFrame([{"Sector": k, "Weight": v*100} for k, v in metrics_log["sector_allocation"].items()])
-                        pie_chart = alt.Chart(sector_df).mark_arc(innerRadius=50).encode(
-                            theta=alt.Theta(field="Weight", type="quantitative"),
-                            color=alt.Color(field="Sector", type="nominal", scale=alt.Scale(scheme="set3")),
-                            tooltip=["Sector", "Weight"]
-                        ).properties(height=250)
+                        sector_df = pd.DataFrame(
+                            [
+                                {"Sector": k, "Weight": v * 100}
+                                for k, v in metrics_log["sector_allocation"].items()
+                            ]
+                        )
+                        pie_chart = (
+                            alt.Chart(sector_df)
+                            .mark_arc(innerRadius=50)
+                            .encode(
+                                theta=alt.Theta(field="Weight", type="quantitative"),
+                                color=alt.Color(
+                                    field="Sector",
+                                    type="nominal",
+                                    scale=alt.Scale(scheme="set3"),
+                                ),
+                                tooltip=["Sector", "Weight"],
+                            )
+                            .properties(height=250)
+                        )
                         st.altair_chart(pie_chart, use_container_width=True)
-            
+
     with t2:
         bt = state.get("backtest_results")
         if bt and bt.get("status") == "success":
             st.markdown("### Institutional Risk Scorecard")
-            
+
             # Primary Metrics Row
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Sharpe Ratio", f"{bt.get('sharpe_ratio', 0):.2f}")
-            m2.metric("Sortino Ratio", f"{bt.get('sortino_ratio', 0):.2f}", help="Risk-adjusted return focusing on downside volatility.")
-            m3.metric("Calmar Ratio", f"{bt.get('calmar_ratio', 0):.2f}", help="Annual return vs Max Drawdown.")
-            m4.metric("Monte Carlo Score", f"{bt.get('mc_robustness_score', 0)*100:.0f}%", help="Percentage of randomized simulations that remained profitable.")
-            
+            m2.metric(
+                "Sortino Ratio",
+                f"{bt.get('sortino_ratio', 0):.2f}",
+                help="Risk-adjusted return focusing on downside volatility.",
+            )
+            m3.metric(
+                "Calmar Ratio",
+                f"{bt.get('calmar_ratio', 0):.2f}",
+                help="Annual return vs Max Drawdown.",
+            )
+            m4.metric(
+                "Monte Carlo Score",
+                f"{bt.get('mc_robustness_score', 0)*100:.0f}%",
+                help="Percentage of randomized simulations that remained profitable.",
+            )
+
             # Secondary Metrics Row
             s1, s2, s3, s4 = st.columns(4)
             s1.metric("Max Drawdown", f"{bt.get('max_drawdown', 0)*100:.1f}%")
             s2.metric("Annual Vol", f"{bt.get('annualized_volatility', 0)*100:.1f}%")
             s3.metric("NN Training Loss", f"{bt.get('nn_loss', 0):.4f}")
             s4.metric("Total Return", f"{bt.get('total_return', 0)*100:.1f}%")
-            
+
             st.markdown("---")
-            
+
             col_eq, col_xai = st.columns([2, 1])
-            
+
             with col_eq:
                 st.markdown("#### Cumulative Equity Curve (Out-of-Sample)")
                 if "equity_curve" in bt:
                     eq_df = pd.DataFrame(bt["equity_curve"])
                     eq_df["date"] = pd.to_datetime(eq_df["date"])
-                    
+
                     # Melt dataframe for Altair multi-line
-                    eq_melted = eq_df.melt(id_vars=["date"], value_vars=["strategy", "benchmark"], 
-                                         var_name="Portfolio", value_name="Cumulative Return")
-                    
-                    line_chart = alt.Chart(eq_melted).mark_line().encode(
-                        x=alt.X("date:T", title="Date"),
-                        y=alt.Y("Cumulative Return:Q", scale=alt.Scale(zero=False)),
-                        color=alt.Color("Portfolio:N", scale=alt.Scale(domain=["strategy", "benchmark"], range=["#10b981", "#64748b"])),
-                        tooltip=["date:T", "Portfolio:N", "Cumulative Return:Q"]
-                    ).interactive().properties(height=350)
-                    
+                    eq_melted = eq_df.melt(
+                        id_vars=["date"],
+                        value_vars=["strategy", "benchmark"],
+                        var_name="Portfolio",
+                        value_name="Cumulative Return",
+                    )
+
+                    line_chart = (
+                        alt.Chart(eq_melted)
+                        .mark_line()
+                        .encode(
+                            x=alt.X("date:T", title="Date"),
+                            y=alt.Y("Cumulative Return:Q", scale=alt.Scale(zero=False)),
+                            color=alt.Color(
+                                "Portfolio:N",
+                                scale=alt.Scale(
+                                    domain=["strategy", "benchmark"],
+                                    range=["#10b981", "#64748b"],
+                                ),
+                            ),
+                            tooltip=["date:T", "Portfolio:N", "Cumulative Return:Q"],
+                        )
+                        .interactive()
+                        .properties(height=350)
+                    )
+
                     st.altair_chart(line_chart, use_container_width=True)
                 else:
                     st.info("Equity curve data not available in this build.")
-                    
+
             with col_xai:
                 st.markdown("#### Explainable AI (Feature Importance)")
                 if "feature_importance" in bt:
                     feat_dict = bt["feature_importance"]
-                    feat_df = pd.DataFrame([{"Feature": k, "Importance": v} for k, v in feat_dict.items()])
-                    
-                    bar_chart = alt.Chart(feat_df).mark_bar(cornerRadiusEnd=4).encode(
-                        x=alt.X("Importance:Q", title="Weight Magnitude"),
-                        y=alt.Y("Feature:N", sort="-x", title=""),
-                        color=alt.Color("Importance:Q", scale=alt.Scale(scheme="tealblues"), legend=None),
-                        tooltip=["Feature:N", alt.Tooltip("Importance:Q", format=".4f")]
-                    ).properties(height=350)
-                    
+                    feat_df = pd.DataFrame(
+                        [{"Feature": k, "Importance": v} for k, v in feat_dict.items()]
+                    )
+
+                    bar_chart = (
+                        alt.Chart(feat_df)
+                        .mark_bar(cornerRadiusEnd=4)
+                        .encode(
+                            x=alt.X("Importance:Q", title="Weight Magnitude"),
+                            y=alt.Y("Feature:N", sort="-x", title=""),
+                            color=alt.Color(
+                                "Importance:Q",
+                                scale=alt.Scale(scheme="tealblues"),
+                                legend=None,
+                            ),
+                            tooltip=[
+                                "Feature:N",
+                                alt.Tooltip("Importance:Q", format=".4f"),
+                            ],
+                        )
+                        .properties(height=350)
+                    )
+
                     st.altair_chart(bar_chart, use_container_width=True)
                 else:
                     st.info("XAI data not available.")
-            
+
         elif bt and bt.get("status") == "error":
             st.error(f"Backtest Execution Error: {bt.get('error')}")
         else:
@@ -547,7 +768,9 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
         stress = state.get("stress_test_report")
         if stress:
             st.subheader(f"Scenario: {stress.get('scenario_name')}")
-            st.warning(f"Estimated Drawdown: {stress.get('estimated_drawdown', 0)*100:.1f}%")
+            st.warning(
+                f"Estimated Drawdown: {stress.get('estimated_drawdown', 0)*100:.1f}%"
+            )
             st.write("**Hedging Logic:**")
             for r in stress.get("recommendations", []):
                 st.markdown(f"- {r}")
@@ -563,17 +786,20 @@ if st.session_state.get("hitl_ready") or st.session_state.get("finished"):
 
     with t5:
         from agents.coder import QuantCoder
+
         if strategy:
-            temp_state = ADKState(request=UserRequest(**state["request"]), draft_strategy=strategy)
+            temp_state = ADKState(
+                request=UserRequest.model_validate(state["request"]), draft_strategy=strategy
+            )
             st.code(QuantCoder.generate_backtest_code(temp_state), language="python")
 
     # Final Action Center
     if st.session_state.get("hitl_ready"):
         st.markdown("---")
-        if st.button("🚨 EXECUTE INSTITUTIONAL ORDERS", type="primary", use_container_width=True):
-            with st.spinner("Routing via SOR Engine..."):
-                adk_app.invoke(None, config=thread_config)
-                st.balloons()
-                st.session_state.hitl_ready = False
-                st.session_state.finished = True
-                st.rerun()
+        if st.button(
+            "🚨 EXECUTE INSTITUTIONAL ORDERS",
+            type="primary",
+            use_container_width=True,
+            key="execute_orders_bottom",
+        ):
+            execute_pending_orders()

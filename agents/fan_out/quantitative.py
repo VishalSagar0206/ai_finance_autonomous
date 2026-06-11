@@ -38,7 +38,7 @@ def quantitative_analyst_agent(state: ADKState) -> Dict[str, Any]:
 
         insight = f"[{investor_type.value}] Regime Match: {regime['matched_regime']}. "
         
-        if investor_type == "INTRADAY":
+        if investor_type.value == "INTRADAY":
             volatility = stats.get("volatility_std", 0)
             if volatility and volatility > 0.02:
                 insight += "High intraday volatility provides trading opportunities."
