@@ -24,7 +24,7 @@
    Create a `.env` file in the root:
    ```env
    ADK_LIVE_MODE=1
-   GEMINI_MODEL=gemini-2.5-flash
+   GEMINI_MODEL=gemini-3.1-pro-preview
    GOOGLE_API_KEY=your_gemini_api_key
    ALPACA_API_KEY=your_alpaca_key
    ALPACA_SECRET_KEY=your_alpaca_secret
