@@ -8,6 +8,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - ADK_LIVE_MODE=${ADK_LIVE_MODE:-0}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - ALPACA_API_KEY=${ALPACA_API_KEY:-MOCK_KEY}
       - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-MOCK_SECRET}

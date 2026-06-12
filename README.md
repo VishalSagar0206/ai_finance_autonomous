@@ -23,9 +23,12 @@
 1. **Configure Environment:**
    Create a `.env` file in the root:
    ```env
+   ADK_LIVE_MODE=1
+   GEMINI_MODEL=gemini-3.1-pro-preview
    GOOGLE_API_KEY=your_gemini_api_key
    ALPACA_API_KEY=your_alpaca_key
    ALPACA_SECRET_KEY=your_alpaca_secret
+   ALPACA_BASE_URL=https://paper-api.alpaca.markets
    DB_URL=postgresql://adk_user:adk_pass@postgres:5432/adk_state
    ```
 
@@ -37,7 +40,7 @@
 
 3. **Launch the Command Center (UI):**
    ```bash
-   uv sync
+   uv sync --extra ui --extra live
    uv run streamlit run web/dashboard.py
    ```
 
