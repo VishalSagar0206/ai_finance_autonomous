@@ -40,3 +40,7 @@ live = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live: tests that call real external APIs such as Gemini, market data, or broker APIs",
+    "integration: multi-agent integration tests",
+]
