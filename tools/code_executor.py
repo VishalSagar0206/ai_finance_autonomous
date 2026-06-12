@@ -7,6 +7,7 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+
 class LocalCodeExecutor:
     """
     Executes Python code in a controlled local subprocess.
@@ -18,7 +19,7 @@ class LocalCodeExecutor:
         """
         Writes code to a temp file, runs it, and parses JSON output.
         """
-        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode='w') as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w") as tmp:
             tmp.write(code)
             tmp_path = tmp.name
 
@@ -28,21 +29,38 @@ class LocalCodeExecutor:
                 [sys.executable, tmp_path],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
 
             if result.returncode != 0:
                 logger.error(f"Backtest execution failed: {result.stderr}")
-                return {"status": "error", "error": result.stderr}
+                return {
+                    "status": "error",
+                    "error": result.stderr,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
 
             # Search for the JSON result block in stdout
             output = result.stdout
             marker = "BACKTEST_RESULTS:"
             if marker in output:
                 json_str = output.split(marker)[1].strip()
-                return json.loads(json_str)
-            
-            return {"status": "error", "error": "No result marker found in output."}
+                try:
+                    return json.loads(json_str)
+                except Exception as e:
+                    logger.error(f"Failed to parse backtest JSON: {str(e)}")
+                    return {
+                        "status": "error",
+                        "error": f"Failed to parse JSON: {str(e)}",
+                        "stdout": output,
+                    }
+
+            return {
+                "status": "error",
+                "error": "No result marker found in output.",
+                "stdout": output,
+            }
 
         except subprocess.TimeoutExpired:
             logger.error("Backtest execution timed out.")
@@ -54,5 +72,6 @@ class LocalCodeExecutor:
             # Cleanup temp file
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
 
 code_executor = LocalCodeExecutor()

@@ -22,7 +22,7 @@ class PlannerOutput(BaseModel):
 
 
 from core.llm_provider import llm_provider
-import os
+from core.config import config
 
 from tools.compliance_engine import compliance_engine
 
@@ -34,7 +34,7 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
     print(f"-> Planner: Orchestrating strategy for {state.request.asset_class}.")
 
     # 1. Institutional Compliance Pre-Check
-    initial_tickers = state.request.tickers or ["AAPL"]
+    initial_tickers = state.request.tickers if state.request.tickers is not None else ["AAPL"]
     compliance_results = compliance_engine.check_ticker_compliance(initial_tickers)
 
     safe_tickers = compliance_results["approved_tickers"]
@@ -44,18 +44,18 @@ def planner_agent(state: ADKState) -> Dict[str, Any]:
         print(f"   [Compliance] BLOCKED restricted assets: {rejected_tickers}")
 
     # 2. Check for API Key for Gemini Planning
-    if not os.environ.get("GOOGLE_API_KEY"):
+    if not config.has_live_llm():
         logger.warning("Planner: No API Key found. Falling back to mock planner logic.")
         req = state.request
         
         # Customize tasks based on investor type
-        if req.investor_type == "INTRADAY":
+        if req.investor_type.value == "INTRADAY":
             tasks = [
                 f"Analyze high-frequency sentiment and volatility for {', '.join(safe_tickers)}.",
                 "Identify intraday momentum signals and support/resistance levels.",
                 "Construct a high-turnover strategy with tight stop-losses."
             ]
-        elif req.investor_type == "SHORT_TERM":
+        elif req.investor_type.value == "SHORT_TERM":
             tasks = [
                 f"Analyze technical indicators and recent news for {', '.join(safe_tickers)}.",
                 "Check for upcoming earnings or macro catalysts.",

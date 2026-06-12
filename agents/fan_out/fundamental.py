@@ -31,12 +31,12 @@ def fundamental_analyst_agent(state: ADKState) -> Dict[str, Any]:
         if roe and roe > 0.2:
             insight = f"[{investor_type.value}] Excellent profitability/ROE."
 
-        if investor_type == "LONG_TERM":
+        if investor_type.value == "LONG_TERM":
             if pe_ratio and pe_ratio > 40:
                 insight += " High P/E may be a concern for value-driven long-term hold."
             elif pe_ratio and pe_ratio < 15:
                 insight += " Attractive P/E for long-term accumulation."
-        elif investor_type == "INTRADAY":
+        elif investor_type.value == "INTRADAY":
             insight += " Fundamentals are secondary for intraday; focusing on news catalysts."
         else: # SHORT_TERM
             insight += " Monitoring for short-term earnings surprises."
