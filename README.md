@@ -46,6 +46,18 @@
 
 ## 🧪 Testing
 The framework is verified by a comprehensive PyTest suite covering complex routing, deterministic LLM fallback protocols, and agentic error-correction loops.
+### For mock mode
 ```bash
-uv run pytest tests/ -v
+$env:ADK_LIVE_MODE="0"
+Remove-Item Env:RUN_LIVE_TESTS -ErrorAction SilentlyContinue
+uv run pytest tests/ -v -m "not live"
+```
+### For live mode
+```bash
+$env:RUN_LIVE_TESTS="1"
+$env:ADK_LIVE_MODE="1"
+$env:ADK_LIVE_BACKTEST_CODEGEN="0"
+$env:GOOGLE_API_KEY="your-gemini-api-key"
+uv sync --extra test --extra live
+uv run pytest tests/live -v -m live
 ```
